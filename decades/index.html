@@ -1,0 +1,441 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#FFFDF5">
+<title>Décades, Games</title>
+<link rel="manifest" href="../manifest.webmanifest">
+<link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="../commun.css">
+<style>
+/* Décades repris tel quel, habillé avec la DA de Games. */
+:root {
+  --bg:var(--fond); --surface:#FFFFFF; --surface-2:#F4EFE3; --surface-3:#E7DFCF;
+  --line:var(--bord); --line-2:var(--bord);
+  --accent:#0284C7; --on-accent:#FFFFFF;
+  --text:var(--encre); --text-2:var(--encre-2); --text-3:#8C8276;
+  --scrim:rgba(44,37,32,.45);
+  --r-card:24px; --space:16px; --barre:66px;
+  --ease:cubic-bezier(.22,1,.36,1); --spring:cubic-bezier(.34,1.4,.64,1); --sheet-in:cubic-bezier(.32,.72,0,1);
+}
+html, body { height:100%; overflow:hidden; position:fixed; inset:0; width:100%; overscroll-behavior:none; }
+.page { position:absolute; inset:calc(var(--barre) + env(safe-area-inset-top)) 0 calc(68px + env(safe-area-inset-bottom)); overflow-y:auto; padding:18px var(--space) 32px; }
+.page[hidden] { display:none; }
+.col { max-width:620px; margin:0 auto; }
+.entete { position:fixed; left:0; right:0; top:0; }
+h1 { margin-bottom:4px; }
+.lead { color:var(--text-2); margin:8px 0 18px; max-width:40ch; }
+.eyebrow { display:block; font-size:.85rem; font-weight:700; color:var(--text-2); margin-bottom:4px; }
+.num { font-family:var(--titre); font-variant-numeric:tabular-nums; font-weight:800; }
+.num small { font-size:.55em; color:var(--text-2); font-weight:700; margin-left:3px; }
+.muted { color:var(--text-2); font-size:.9rem; }
+.card { background:var(--surface); border:1.6px solid var(--line); border-radius:var(--r-card); box-shadow:0 4px 0 var(--ombre); padding:18px; margin-bottom:14px; }
+.card-glow { background:var(--c-clair); border-color:var(--c); box-shadow:0 4px 0 var(--c-bord); }
+.btn { width:auto; }
+.btn-primary { background:var(--c-bord); color:#fff; border-color:var(--c-bord); box-shadow:0 3px 0 var(--encre); }
+.btn-secondary { background:#fff; }
+.btn-block { width:100%; }
+.btn-sm { min-height:44px; padding:6px 14px; font-size:.95rem; }
+.mode { display:flex; justify-content:space-between; align-items:flex-end; gap:12px; }
+.mode h3 { font-size:1.35rem; margin-bottom:6px; }
+.mode p { color:var(--text-2); font-size:.9rem; }
+.mode .best { text-align:right; flex:none; }
+.mode .best b { font-size:1.5rem; display:block; }
+.card .btn { margin-top:14px; }
+.hud { margin-bottom:12px; }
+.hud b { font-size:2.2rem; line-height:1; }
+.bar { height:10px; border-radius:10px; background:var(--surface-2); overflow:hidden; margin-bottom:16px; }
+.bar i { display:block; height:100%; background:var(--c); transform-origin:left; transition:transform 420ms var(--ease); }
+.item h3 { font-size:1.25rem; line-height:1.15; }
+.vs { text-align:center; color:var(--text-3); font-size:.9rem; font-weight:700; margin:-4px 0 10px; }
+.guess { text-align:center; }
+.guess .big { font-size:2.6rem; line-height:1; display:block; margin:2px 0 6px; }
+.guess .cap { color:var(--text-2); font-size:.9rem; min-height:2.6em; }
+.slider { display:flex; align-items:center; gap:8px; margin-top:14px; }
+.slider .btn-sm { flex:none; min-width:58px; margin:0; }
+input[type=range] { -webkit-appearance:none; appearance:none; flex:1; height:44px; background:transparent; }
+input[type=range]::-webkit-slider-runnable-track { height:10px; border-radius:10px; background:#fff; border:1.6px solid var(--bord); }
+input[type=range]::-moz-range-track { height:10px; border-radius:10px; background:#fff; border:1.6px solid var(--bord); }
+input[type=range]::-webkit-slider-thumb { -webkit-appearance:none; width:28px; height:28px; margin-top:-11px; border-radius:50%; background:var(--c-bord); border:3px solid #fff; box-shadow:0 2px 0 var(--encre); }
+input[type=range]::-moz-range-thumb { width:22px; height:22px; border-radius:50%; background:var(--c-bord); border:3px solid #fff; }
+.ends { display:flex; justify-content:space-between; padding:0 66px; color:var(--text-3); font-size:.8rem; font-weight:700; }
+.item { display:flex; align-items:center; gap:12px; }
+.item > div { flex:1; min-width:0; }
+.pic { flex:none; width:64px; height:64px; display:flex; align-items:center; justify-content:center; }
+.pic:empty { display:none; }
+.pic svg { max-width:100%; max-height:100%; }
+.stage { position:relative; height:230px; margin-top:16px; border-radius:16px; background:var(--surface-2); overflow:hidden; }
+.stage .obj { position:absolute; left:0; top:0; transform-origin:0 0; }
+.stage .obj svg { display:block; width:100%; height:100%; overflow:visible; }
+.stage .ground { position:absolute; left:0; right:0; height:2px; background:var(--surface-3); }
+.stage .ring { position:absolute; left:0; top:0; width:16px; height:16px; margin:-8px 0 0 -8px; border-radius:50%; border:2px solid var(--accent); opacity:0; transition:opacity 160ms; }
+.stage .sbar { position:absolute; left:12px; top:12px; }
+.stage .sbar i { display:block; width:100px; height:4px; border-radius:2px; background:var(--text); transform-origin:0 0; }
+.stage .sbar span { display:block; margin-top:6px; font-size:.75rem; font-weight:800; }
+.scrub { display:flex; align-items:center; gap:8px; margin-top:6px; }
+.scrub span { color:var(--text-2); font-size:.75rem; font-weight:700; flex:none; max-width:30%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ruler { position:relative; height:50px; margin:20px 4px 4px; }
+.ruler::before { content:''; position:absolute; left:0; right:0; top:20px; height:8px; border-radius:8px; background:var(--surface-2); }
+.mark { position:absolute; top:10px; width:5px; height:28px; margin-left:-2.5px; border-radius:3px; animation:pop 420ms var(--spring) both; }
+.mark.you { background:var(--rose); }
+.mark.truth { background:var(--text); }
+.mark span { position:absolute; top:32px; left:50%; transform:translateX(-50%); white-space:nowrap; font-size:.75rem; font-weight:800; }
+.mark.you span { color:var(--rose); top:-18px; }
+@keyframes pop { from { opacity:0; transform:scale3d(1,.2,1); } }
+.facts { display:grid; grid-template-columns:1fr; gap:8px; margin-top:16px; }
+.fact { background:var(--surface-2); border-radius:14px; padding:10px 12px; }
+.fact b { font-size:1.1rem; }
+.badge { font-family:var(--titre); font-size:.9rem; font-weight:800; padding:4px 12px; border-radius:999px; color:var(--c-bord); background:var(--c-clair); }
+.badge.green { color:var(--vert-bord); background:var(--vert-clair); }
+.badge.red { color:var(--rouge); background:var(--rouge-clair); }
+.chips { display:flex; gap:8px; overflow-x:auto; scrollbar-width:none; margin:16px calc(var(--space) * -1) 8px; padding:0 var(--space) 6px; }
+.chips::-webkit-scrollbar { display:none; }
+.chips button { flex:none; background:#fff; border:1.6px solid var(--bord); box-shadow:0 2px 0 var(--ombre); font-family:var(--titre); font-size:.95rem; font-weight:800; min-height:42px; padding:0 16px; border-radius:999px; }
+.chips button.active { background:var(--c-clair); color:var(--c-bord); border-color:var(--c); box-shadow:0 2px 0 var(--c-bord); }
+.rows { display:flex; flex-direction:column; gap:8px; }
+.row { display:grid; grid-template-columns:72px 1fr; gap:12px; align-items:center; text-align:left; width:100%;
+  background:#fff; border:1.6px solid var(--bord); box-shadow:0 2px 0 var(--ombre); border-radius:16px; padding:10px 12px; min-height:56px; }
+.row:active { transform:translateY(2px); box-shadow:none; }
+.row .exp { font-size:1.15rem; }
+.row .nm { font-weight:700; font-size:.95rem; line-height:1.2; }
+.row .val { color:var(--text-2); font-size:.8rem; margin-top:2px; }
+.row .rel { color:var(--c-bord); font-weight:800; }
+.row.ref { border-color:var(--c); background:var(--c-clair); }
+.track { grid-column:1 / -1; height:4px; border-radius:4px; background:var(--surface-2); position:relative; }
+.track i { position:absolute; top:-2px; width:8px; height:8px; margin-left:-4px; border-radius:50%; background:var(--c-bord); }
+.scrim { position:fixed; inset:0; background:var(--scrim); opacity:0; pointer-events:none; transition:opacity 200ms; z-index:20; }
+.scrim.on { opacity:1; pointer-events:auto; }
+.sheet { position:fixed; left:0; right:0; bottom:0; max-width:620px; margin:0 auto; max-height:92vh; z-index:21; display:flex; flex-direction:column;
+  background:var(--fond); border-radius:28px 28px 0 0; border:1.6px solid var(--bord); border-bottom:none; transform:translate3d(0,105%,0); transition:transform 200ms var(--ease); }
+.sheet.on { transform:none; transition-duration:420ms; transition-timing-function:var(--sheet-in); }
+.sheet .grab { width:42px; height:5px; border-radius:5px; background:var(--surface-3); margin:10px auto 0; flex:none; }
+.sheet header { padding:12px 18px 8px; display:flex; justify-content:space-between; align-items:center; flex:none; }
+.sheet header b { font-family:var(--titre); font-size:1.3rem; font-weight:800; }
+.sheet .body { overflow-y:auto; padding:4px 18px 12px; }
+.sheet footer { padding:12px 18px calc(12px + env(safe-area-inset-bottom)); flex:none; display:flex; gap:8px; }
+.sheet footer .btn { flex:1; }
+.pts { font-size:3rem; line-height:1; }
+nav { position:fixed; left:0; right:0; bottom:0; height:calc(68px + env(safe-area-inset-bottom)); padding:8px 16px env(safe-area-inset-bottom); background:var(--fond);
+  box-shadow:0 -1.6px 0 var(--creux); display:flex; justify-content:center; gap:10px; z-index:10; }
+nav button { flex:1; max-width:220px; height:50px; border-radius:999px; border:1.6px solid var(--bord); background:#fff; box-shadow:0 2px 0 var(--ombre);
+  display:flex; align-items:center; justify-content:center; gap:8px; font-family:var(--titre); font-weight:800; font-size:1rem; }
+nav button span.ic { display:flex; }
+nav button.active { background:var(--c-clair); border-color:var(--c); color:var(--c-bord); box-shadow:0 2px 0 var(--c-bord); }
+nav svg, .btn svg { width:20px; height:20px; stroke:currentColor; stroke-width:2; fill:none; stroke-linecap:round; stroke-linejoin:round; }
+@media (prefers-reduced-motion: reduce) { *, *::before, *::after { animation:none !important; transition:none !important; } }
+</style>
+</head>
+</head>
+<body data-jeu="decades">
+<header class="entete"><a class="marque" href="../" aria-label="Retour à Games"></a><span class="pilule-jeu"></span><div class="droite"></div></header>
+
+<main class="page" id="p-home">
+  <div class="col">
+    <h1>Décades</h1>
+    <p class="lead">Combien de fois plus ? Du proton à l'univers observable, devine l'écart en puissances de dix.</p>
+    <div id="modes"></div>
+    <div class="card enter" style="animation-delay:120ms">
+      <span class="eyebrow">Comment ça marche</span>
+      <p class="muted">Deux choses de même nature. Règle le curseur sur le rapport entre la première et la seconde. Chaque cran de ×10 compte : te tromper d'un facteur 10 coûte cher, d'un facteur 2 presque rien. Dix manches par partie.</p>
+    </div>
+  </div>
+</main>
+
+<main class="page" id="p-game" hidden>
+  <div class="col">
+    <div class="hud">
+      <div><span class="eyebrow" id="g-round">Manche 1 sur 10</span><b class="num" id="g-score">0</b></div>
+      <button class="btn btn-sm btn-secondary" id="g-quit">Quitter</button>
+    </div>
+    <div class="bar"><i id="g-bar" style="transform:scaleX(0)"></i></div>
+    <div class="card item"><div><span class="eyebrow" id="g-dim">Longueur</span><h3 id="g-a"></h3></div><span class="pic" id="g-pa"></span></div>
+    <p class="vs">comparé à</p>
+    <div class="card item"><div><span class="eyebrow" id="g-dim2">Longueur</span><h3 id="g-b"></h3></div><span class="pic" id="g-pb"></span></div>
+    <div class="card card-glow guess">
+      <span class="eyebrow">Ta réponse</span>
+      <b class="num big" id="g-ratio">×1</b>
+      <p class="cap" id="g-cap"></p>
+      <div class="slider">
+        <button class="btn btn-sm btn-secondary" id="g-down" aria-label="Diviser par 10">÷10</button>
+        <input type="range" id="g-range" step="0.1" aria-label="Rapport en puissances de dix">
+        <button class="btn btn-sm btn-secondary" id="g-up" aria-label="Multiplier par 10">×10</button>
+      </div>
+      <div class="ends"><span id="g-min"></span><span>×1</span><span id="g-max"></span></div>
+      <button class="btn btn-primary btn-block" id="g-ok">Valider</button>
+    </div>
+  </div>
+</main>
+
+<main class="page" id="p-scale" hidden>
+  <div class="col">
+    <h2>Échelles</h2>
+    <p class="lead" id="s-lead">Touche une ligne pour la prendre comme référence et voir tout le reste en rapport.</p>
+    <div class="chips" id="s-chips"></div>
+    <div class="rows" id="s-rows"></div>
+  </div>
+</main>
+
+<div class="scrim" id="scrim"></div>
+<section class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sh-title">
+  <div class="grab"></div>
+  <header><b id="sh-title"></b><span id="sh-badge"></span></header>
+  <div class="body" id="sh-body"></div>
+  <footer id="sh-foot"></footer>
+</section>
+
+<nav>
+  <button class="active" data-tab="home"><span class="ic"><svg viewBox="0 0 24 24"><path d="M6 4l14 8-14 8z"/></svg></span>Jouer</button>
+  <button data-tab="scale"><span class="ic"><svg viewBox="0 0 24 24"><path d="M3 20h18M6 20V10M11 20V4M16 20v-7M21 20v-3"/></svg></span>Échelles</button>
+</nav>
+
+<div id="modale" class="modale" hidden></div>
+<script src="../commun.js"></script>
+<script src="data.js"></script>
+<script src="glyphs.js"></script>
+<script>
+const $ = id => document.getElementById(id);
+const ROUNDS = 10;
+const MODES = {
+  terre:  { name: 'Quotidien', desc: 'Objets, animaux, villes et records du quotidien. Écarts jusqu\'à un million.', range: 6, tol: 2 },
+  cosmos: { name: 'Cosmique', desc: 'Atomes, étoiles, galaxies, trous noirs. Écarts jusqu\'à 10⁴⁰.', range: 40, tol: 6 },
+};
+
+// Formatage
+const SUP = { '-': '⁻', 0:'⁰',1:'¹',2:'²',3:'³',4:'⁴',5:'⁵',6:'⁶',7:'⁷',8:'⁸',9:'⁹' };
+const sup = n => String(n).replace(/./g, c => SUP[c]);
+function fmtNum(v, sig = 3) {
+  if (v >= 0.01 && v < 1e6) return v.toLocaleString('fr-FR', { maximumSignificantDigits: sig });
+  let e = Math.floor(Math.log10(v)), m = +(v / 10 ** e).toPrecision(2);
+  if (m >= 10) { m = 1; e++; }
+  return (m === 1 ? '' : m.toLocaleString('fr-FR') + ' × ') + '10' + sup(e);
+}
+function fmtDuree(s) {
+  const U = [[3.156e7, 'ans'], [86400, 'jours'], [3600, 'h'], [60, 'min']];
+  for (const [k, u] of U) if (s >= k * (k === 3.156e7 ? 1 : 1.5)) return [fmtNum(s / k), u];
+  return [fmtNum(s), 's'];
+}
+function fmtVal(it) {
+  const [n, u] = it.d === 'duree' ? fmtDuree(it.v) : [fmtNum(it.v), DIMS[it.d].unit];
+  return u ? `${n}<small>${u}</small>` : n;
+}
+const ratioText = x => (x < 0 ? '÷' : '×') + fmtNum(10 ** Math.abs(x), 2);
+const points = (err, tol) => Math.round(1000 * Math.max(0, 1 - Math.abs(err) / tol));
+
+// Stockage local (préférence, pas critique)
+const store = {
+  get(k) { try { return JSON.parse(localStorage.getItem('decades:' + k)); } catch { return null; } },
+  set(k, v) { try { localStorage.setItem('decades:' + k, JSON.stringify(v)); } catch {} },
+};
+
+// Tirage d'une paire
+function pickPair(mode, used) {
+  const m = MODES[mode], dims = Object.keys(DIMS);
+  for (let t = 0; t < 2000; t++) {
+    const d = dims[Math.random() * dims.length | 0];
+    const pool = ITEMS.filter(it => it.d === d && (mode === 'cosmos' || it.h));
+    const a = pool[Math.random() * pool.length | 0], b = pool[Math.random() * pool.length | 0];
+    if (!a || !b || a === b) continue;
+    const diff = a.l - b.l, key = [a.id, b.id].sort().join();
+    if (Math.abs(diff) < 0.3 || Math.abs(diff) > m.range - 0.5 || used.has(key)) continue;
+    if (mode === 'cosmos' && a.h && b.h) continue;
+    used.add(key);
+    return { a, b, truth: diff };
+  }
+  throw new Error('Pas assez de paires pour ce mode');
+}
+
+// Autotest
+console.assert(points(0, 2) === 1000 && points(2, 2) === 0 && points(-1, 2) === 500, 'points');
+console.assert(fmtNum(1e-35) === '10⁻³⁵' && fmtNum(8.8e26) === '8,8 × 10²⁶', 'fmtNum');
+for (const mode in MODES) { const u = new Set(); for (let i = 0; i < ROUNDS; i++) { const p = pickPair(mode, u); console.assert(Math.abs(p.truth) <= MODES[mode].range, 'range'); } }
+
+// Navigation
+let tab = 'home', game = null;
+function show(name) {
+  tab = name;
+  for (const p of ['home', 'game', 'scale']) $('p-' + p).hidden = p !== name;
+  document.querySelectorAll('nav button').forEach(b => b.classList.toggle('active', b.dataset.tab === (name === 'game' ? 'home' : name)));
+}
+document.querySelectorAll('nav button').forEach(b => b.onclick = () => {
+  if (b.dataset.tab === 'home' && game) return show('game');
+  show(b.dataset.tab);
+  if (b.dataset.tab === 'scale') renderScale();
+});
+
+// Accueil
+function renderHome() {
+  $('modes').innerHTML = Object.entries(MODES).map(([k, m], i) => {
+    const best = store.get('best:' + k);
+    return `<div class="card enter ${i ? '' : 'card-glow'}" style="animation-delay:${i * 40}ms">
+      <div class="mode"><div><h3>${m.name}</h3><p>${m.desc}</p></div>
+      <div class="best"><span class="eyebrow">Record</span><b class="num">${best ? best.toLocaleString('fr-FR') : '0'}</b></div></div>
+      <button class="btn btn-block ${i ? 'btn-secondary' : 'btn-primary'}" data-mode="${k}">Jouer en ${m.name.toLowerCase()}</button></div>`;
+  }).join('');
+  $('modes').querySelectorAll('[data-mode]').forEach(b => b.onclick = () => start(b.dataset.mode));
+}
+
+// Partie
+function start(mode) {
+  game = { mode, round: 0, score: 0, used: new Set() };
+  const R = MODES[mode].range, r = $('g-range');
+  r.min = -R; r.max = R;
+  $('g-min').textContent = '÷' + fmtNum(10 ** R, 2);
+  $('g-max').textContent = '×' + fmtNum(10 ** R, 2);
+  show('game');
+  next();
+}
+function next() {
+  game.pair = pickPair(game.mode, game.used);
+  const { a, b } = game.pair;
+  $('g-round').textContent = `Manche ${game.round + 1} sur ${ROUNDS}`;
+  $('g-score').textContent = game.score.toLocaleString('fr-FR');
+  $('g-bar').style.transform = `scaleX(${game.round / ROUNDS})`;
+  $('g-dim').textContent = $('g-dim2').textContent = DIMS[a.d].label;
+  $('g-a').textContent = a.n; $('g-b').textContent = b.n;
+  $('g-pa').innerHTML = a.g ? glyphSvg(a.g) : ''; $('g-pb').innerHTML = b.g ? glyphSvg(b.g) : '';
+  $('g-range').value = 0; updateGuess();
+  $('p-game').scrollTop = 0;
+}
+function updateGuess() {
+  const x = +$('g-range').value, { a, b } = game.pair;
+  $('g-ratio').textContent = Math.abs(x) < 0.05 ? '×1' : ratioText(x);
+  $('g-cap').textContent = Math.abs(x) < 0.05 ? `Autant que ${b.n.toLowerCase()}`
+    : `${a.n} : ${fmtNum(10 ** Math.abs(x), 2)} fois ${x > 0 ? 'plus' : 'moins'} que ${b.n.toLowerCase()}`;
+  $('g-range').setAttribute('aria-valuetext', $('g-ratio').textContent);
+}
+$('g-range').oninput = updateGuess;
+$('g-up').onclick = () => { $('g-range').value = +$('g-range').value + 1; updateGuess(); };
+$('g-down').onclick = () => { $('g-range').value = +$('g-range').value - 1; updateGuess(); };
+$('g-quit').onclick = () => { game = null; show('home'); };
+$('g-ok').onclick = reveal;
+
+function reveal() {
+  const guess = +$('g-range').value, { a, b, truth } = game.pair, m = MODES[game.mode];
+  const pts = points(guess - truth, m.tol), R = m.range;
+  game.score += pts; game.round++;
+  navigator.vibrate?.(pts > 600 ? 20 : [10, 40, 10]);
+  const pos = x => ((Math.max(-R, Math.min(R, x)) + R) / (2 * R) * 100).toFixed(2) + '%';
+  const err = Math.abs(guess - truth);
+  const verdict = err < 0.3 ? ['Dans le mille', 'green'] : err < m.tol / 2 ? ['Bien vu', ''] : ['Raté', 'red'];
+  openSheet({
+    title: 'Résultat', badge: `<span class="badge ${verdict[1]}">${verdict[0]}</span>`,
+    body: `<span class="eyebrow">Points</span><b class="num pts">+${pts}</b>
+      ${a.g ? `<div class="stage" id="stage" role="img" aria-label="${a.n} et ${b.n} dessinés à la même échelle"></div>
+        <div class="scrub"><span id="sc-lo"></span><input type="range" id="sc-t" min="0" max="1000" value="0" aria-label="Zoom"><span id="sc-hi"></span></div>` : ''}
+      <div class="ruler" role="img" aria-label="Ta réponse ${ratioText(guess)}, bonne réponse ${ratioText(truth)}">
+        <div class="mark truth" style="left:${pos(truth)}"><span>${ratioText(truth)}</span></div>
+        <div class="mark you" style="left:${pos(guess)}"><span>Toi</span></div>
+      </div>
+      <div class="facts">
+        <div class="fact"><span class="eyebrow">${a.n}</span><b class="num">${fmtVal(a)}</b></div>
+        <div class="fact"><span class="eyebrow">${b.n}</span><b class="num">${fmtVal(b)}</b></div>
+        <div class="fact"><span class="eyebrow">Écart réel</span><b class="num">${ratioText(truth)}</b>
+          <p class="muted">Tu as répondu ${ratioText(guess)}, soit ${err < 0.05 ? 'pile la bonne valeur' : 'un facteur ' + fmtNum(10 ** err, 2) + ' d\'écart'}.</p></div>
+      </div>`,
+    actions: [[game.round < ROUNDS ? 'Manche suivante' : 'Voir le score', 'btn-primary', () => {
+      closeSheet(); game.round < ROUNDS ? next() : finish();
+    }]],
+  });
+  if (a.g) scene(a, b);
+}
+
+// Les deux objets à la même échelle, avec un zoom logarithmique du petit vers le grand.
+// Les tailles sont recalculées à chaque image en JS : un scale CSS de 10⁴⁰ ne passerait pas.
+let sceneRaf = 0;
+function scene(a, b) {
+  const st = $('stage'), F = st.clientWidth, H = st.clientHeight, gy = H * .86, M = 14;
+  st.innerHTML = `<div class="ground" style="top:${gy}px"></div><div class="ring"></div><div class="sbar"><i></i><span></span></div>`;
+  let [s, B] = [a, b].map(it => {
+    const [w, h] = realSize(it), el = document.createElement('div');
+    el.className = 'obj'; el.style.width = '100px'; el.style.height = 100 * h / w + 'px';
+    el.innerHTML = glyphSvg(it.g); st.append(el);
+    return { it, w, h, el };
+  });
+  if (Math.max(s.w, s.h) > Math.max(B.w, B.h)) [s, B] = [B, s];
+  s.x = -s.w / 2; B.x = s.w * .8;  // en mètres, origine au centre du petit
+  const p1 = Math.min((F - 2 * M) / (1.3 * s.w + B.w), gy * .8 / Math.max(s.h, B.h));
+  const p0 = Math.max(p1, Math.min(F * .5 / s.w, gy * .6 / s.h));
+  const xEnd = M + s.w / 2 * p1, ring = st.querySelector('.ring'), bar = st.querySelector('.sbar i'), lab = st.querySelector('.sbar span');
+  $('sc-lo').textContent = s.it.n; $('sc-hi').textContent = B.it.n;
+  const draw = t => {
+    const e = t < .5 ? 2 * t * t : 1 - (2 - 2 * t) ** 2 / 2;
+    const p = Math.exp(Math.log(p0) + (Math.log(p1) - Math.log(p0)) * e), xc = F / 2 + (xEnd - F / 2) * e;
+    for (const o of [s, B]) {
+      const w = o.w * p, h = o.h * p, big = Math.max(w, h);
+      o.el.style.opacity = big < .3 || big > 30 * F ? 0 : 1;
+      if (o.el.style.opacity === '1') o.el.style.transform = `translate(${xc + o.x * p}px,${gy - h}px) scale(${w / 100})`;
+    }
+    ring.style.opacity = Math.max(s.w, s.h) * p < 4 ? 1 : 0;
+    ring.style.transform = `translate(${xc}px,${gy - 8}px)`;
+    const n = Math.floor(Math.log10(F * .3 / p));
+    bar.style.transform = `scaleX(${10 ** n * p / 100})`;
+    lab.textContent = fmtNum(10 ** n) + ' m';
+    $('sc-t').value = Math.round(t * 1000);
+  };
+  cancelAnimationFrame(sceneRaf);
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const dur = Math.min(4500, 1400 + 90 * Math.log10(p0 / p1)), t0 = performance.now() + 450;
+  const tick = now => { const t = Math.min(1, Math.max(0, (now - t0) / dur)); draw(t); if (t < 1) sceneRaf = requestAnimationFrame(tick); };
+  draw(reduce ? 1 : 0);
+  if (!reduce) sceneRaf = requestAnimationFrame(tick);
+  $('sc-t').oninput = () => { cancelAnimationFrame(sceneRaf); draw($('sc-t').value / 1000); };
+}
+function finish() {
+  const { mode, score } = game, best = store.get('best:' + mode) || 0;
+  if (score > best) store.set('best:' + mode, score);
+  G.record('decades', score);
+  $('g-bar').style.transform = 'scaleX(1)';
+  game = null;
+  openSheet({
+    title: 'Partie terminée', badge: score > best ? '<span class="badge green">Record</span>' : '',
+    body: `<span class="eyebrow">Score sur ${(ROUNDS * 1000).toLocaleString('fr-FR')}</span><b class="num pts">${score.toLocaleString('fr-FR')}</b>
+      <p class="muted" style="margin-top:10px">${score > best ? 'Nouveau record en mode ' + MODES[mode].name.toLowerCase() + '.' : 'Record actuel : ' + best.toLocaleString('fr-FR') + '.'}</p>`,
+    actions: [['Accueil', 'btn-secondary', () => { closeSheet(); renderHome(); show('home'); }],
+              ['Rejouer', 'btn-primary', () => { closeSheet(); start(mode); }]],
+  });
+}
+
+// Panneau du bas
+function openSheet({ title, badge, body, actions }) {
+  $('sh-title').textContent = title; $('sh-badge').innerHTML = badge || '';
+  $('sh-body').innerHTML = body; $('sh-foot').innerHTML = '';
+  for (const [label, cls, fn] of actions) {
+    const b = document.createElement('button'); b.className = 'btn ' + cls; b.textContent = label; b.onclick = fn;
+    $('sh-foot').append(b);
+  }
+  $('scrim').classList.add('on'); $('sheet').classList.add('on');
+  $('sh-foot').lastChild.focus({ preventScroll: true });
+}
+function closeSheet() { $('scrim').classList.remove('on'); $('sheet').classList.remove('on'); }
+// Le résultat attend une action : Échap ou le voile valident le bouton principal.
+const sheetDefault = () => $('sheet').classList.contains('on') && $('sh-foot').lastChild.click();
+$('scrim').onclick = sheetDefault;
+addEventListener('keydown', e => e.key === 'Escape' && sheetDefault());
+
+// Échelles
+let scaleDim = 'longueur', refId = null;
+function renderScale() {
+  $('s-chips').innerHTML = Object.entries(DIMS).map(([k, d]) =>
+    `<button class="${k === scaleDim ? 'active' : ''}" data-d="${k}" aria-pressed="${k === scaleDim}">${d.label}</button>`).join('');
+  $('s-chips').querySelectorAll('button').forEach(b => b.onclick = () => { scaleDim = b.dataset.d; refId = null; renderScale(); });
+  const list = ITEMS.filter(it => it.d === scaleDim).sort((x, y) => y.l - x.l);
+  const hi = list[0].l, lo = list.at(-1).l, ref = ITEMS[refId];
+  $('s-rows').innerHTML = list.map(it => {
+    const rel = ref && it !== ref ? `<span class="rel">${ratioText(it.l - ref.l)}</span> par rapport à la référence` : ref ? 'Référence' : '';
+    return `<button class="row ${it === ref ? 'ref' : ''}" data-id="${it.id}" aria-pressed="${it === ref}">
+      <b class="num exp">10${sup(Math.floor(it.l))}</b>
+      <span><span class="nm">${it.n}</span><span class="val" style="display:block">${fmtVal(it).replace(/<\/?small>/g, ' ')}${rel ? ', ' + rel : ''}</span></span>
+      <span class="track"><i style="left:${((it.l - lo) / (hi - lo || 1) * 100).toFixed(1)}%"></i></span></button>`;
+  }).join('');
+  $('s-rows').querySelectorAll('.row').forEach(b => b.onclick = () => { refId = refId === +b.dataset.id ? null : +b.dataset.id; renderScale(); });
+  $('s-lead').textContent = `${list.length} repères, de ${fmtNum(10 ** lo)} à ${fmtNum(10 ** hi)}${DIMS[scaleDim].unit ? ' ' + DIMS[scaleDim].unit : ''}. Touche une ligne pour la prendre comme référence.`;
+}
+
+renderHome();
+</script>
+</body>
+</html>

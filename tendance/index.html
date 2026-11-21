@@ -1,0 +1,307 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Tendance, Games</title>
+  <meta name="theme-color" content="#FFFDF5">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../commun.css">
+  <style>
+    .graphe { position: relative; }
+    .graphe svg { display: block; width: 100%; height: auto; touch-action: none; user-select: none; -webkit-user-select: none; }
+    .graphe svg:focus-visible { outline: 3px solid var(--c); outline-offset: 4px; border-radius: 12px; }
+    .axe text { font: 600 13px var(--texte); fill: var(--encre-2); }
+    .zone { fill: var(--creux); }
+    .zone-texte { font: 800 17px var(--titre); fill: var(--encre-2); }
+    .vraie { fill: none; stroke: var(--encre); stroke-width: 3.4; stroke-linejoin: round; stroke-linecap: round; }
+    .toi { fill: none; stroke: var(--rose); stroke-width: 4; stroke-linejoin: round; stroke-linecap: round; }
+    .autre { fill: none; stroke: #60A5FA; stroke-width: 1.6; opacity: .45; stroke-linejoin: round; }
+    .joueur-l { fill: none; stroke-width: 3; stroke-linejoin: round; stroke-linecap: round; }
+    .revele { transform-box: fill-box; transform-origin: left; transform: scaleX(0); animation: devoile 1100ms cubic-bezier(.45, 0, .2, 1) 150ms forwards; }
+    @keyframes devoile { to { transform: scaleX(1); } }
+    @media (prefers-reduced-motion: reduce) { .revele { transform: none; } }
+    .curseur { fill: var(--rose); }
+    .legende { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .9rem; font-weight: 700; }
+    .legende i { display: inline-block; width: 18px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; background: var(--l); }
+    .resultat { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
+    .pts { font-family: var(--titre); font-weight: 900; font-size: 1.2rem; padding: 6px 14px; border-radius: 999px; background: var(--vert-clair); color: var(--vert-bord);
+      border: 1.6px solid var(--vert); box-shadow: 0 2px 0 var(--vert-bord); }
+    .titre-serie { font-size: 1.35rem; }
+    .classement li { display: flex; align-items: center; gap: 10px; padding: 8px 0; font-weight: 700; }
+    .classement li span.n { flex: 1; }
+    .classement { list-style: none; margin: 0; padding: 0; }
+  </style>
+</head>
+<body data-jeu="tendance">
+  <header class="entete">
+    <a class="marque" href="../" aria-label="Retour à Games"></a>
+    <span class="pilule-jeu"></span>
+    <div class="droite"><button class="rond" id="aide" aria-label="Règles">?</button></div>
+  </header>
+  <main class="app" id="app" aria-live="polite"></main>
+  <div id="modale" class="modale" hidden></div>
+  <script src="../commun.js"></script>
+  <script src="data.js"></script>
+  <script>
+'use strict';
+const MANCHES = 5;
+let W = 640, H = 420;
+const M = { g: 48, d: 14, h: 16, b: 34 };
+const $app = document.getElementById('app');
+let P = null;          // partie en cours
+let dessin = null;     // tracé du joueur courant : { vals: [], an, actif }
+
+// Échelle « ronde » au-dessus du maximum.
+function plafond(v) {
+  const e = 10 ** Math.floor(Math.log10(v || 1));
+  for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * e >= v * 1.12) return m * e;
+}
+const fmtV = v => v.toLocaleString('fr-FR', { maximumSignificantDigits: 3 });
+// Score : 1 000 si parfait, environ 700 pour une erreur moyenne de 8 % de l'échelle.
+const points = (err, haut) => Math.round(1000 * Math.exp(-4.4 * err / haut));
+console.assert(points(0, 10) === 1000 && Math.abs(points(0.8, 10) - 703) < 3, 'points');
+console.assert(plafond(62.1) === 80 && plafond(8.22) === 10, 'plafond');
+
+function geo(s) {
+  // Le graphique prend la largeur réelle de la carte : le texte garde sa taille, et sur téléphone il devient plus haut que large.
+  W = Math.round(Math.min(640, Math.max(300, $app.clientWidth - 76)));
+  H = Math.round(W < 480 ? W * 1.05 : W * 0.66);
+  const fin = s.debut + s.v.length - 1, haut = plafond(Math.max(...s.v));
+  const x = a => M.g + (a - s.debut) / (fin - s.debut) * (W - M.g - M.d);
+  const y = v => H - M.b - v / haut * (H - M.h - M.b);
+  return { fin, haut, x, y, an: px => s.debut + (px - M.g) / (W - M.g - M.d) * (fin - s.debut), val: py => (H - M.b - py) / (H - M.h - M.b) * haut };
+}
+const chemin = (pts, g) => pts.map(([a, v], i) => `${i ? 'L' : 'M'}${g.x(a).toFixed(1)},${g.y(v).toFixed(1)}`).join('');
+
+function svgGraphe(s, contenu) {
+  const g = geo(s), xc = g.x(s.coupe);
+  const pas = (g.fin - s.debut) > 80 ? 20 : (g.fin - s.debut) > 40 ? 10 : 5;
+  let axes = '';
+  // Nombre de graduations qui tombe sur des valeurs rondes (150 → 5 pas de 30, pas 4 de 37,5).
+  const n = [4, 5, 3, 6].find(n => +(g.haut / n).toPrecision(2) === g.haut / n) || 4;
+  for (let k = 0; k <= n; k++) {
+    const v = g.haut * k / n, yy = g.y(v);
+    axes += `<line x1="${M.g}" x2="${W - M.d}" y1="${yy}" y2="${yy}" stroke="${k ? '#EFE8DA' : '#BDB4A7'}" stroke-width="${k ? 1 : 1.6}"/>
+      <text x="${M.g - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${fmtV(v)}</text>`;
+  }
+  for (let a = Math.ceil(s.debut / pas) * pas; a <= g.fin; a += pas)
+    axes += `<text x="${g.x(a)}" y="${H - 10}" text-anchor="middle">${a}</text>`;
+  const vu = s.v.slice(0, s.coupe - s.debut + 1).map((v, i) => [s.debut + i, v]);
+  return `<svg viewBox="0 0 ${W} ${H}" role="application" tabindex="0" aria-label="${G.esc(s.titre)}, en ${G.esc(s.unite)}. Courbe connue jusqu'en ${s.coupe}.">
+    <rect class="zone" x="${xc}" y="${M.h}" width="${W - M.d - xc}" height="${H - M.h - M.b}" rx="6"/>
+    <g class="axe">${axes}</g>
+    <line x1="${xc}" x2="${xc}" y1="${M.h}" y2="${H - M.b}" stroke="#8C8276" stroke-width="1.6" stroke-dasharray="5 5"/>
+    <path class="vraie" d="${chemin(vu, g)}"/>
+    ${contenu}
+    <circle cx="${xc}" cy="${g.y(vu.at(-1)[1])}" r="6" fill="#fff" stroke="#2C2520" stroke-width="2.4"/>
+  </svg>`;
+}
+
+// ---------- Accueil ----------
+function accueil() {
+  P = null;
+  const J = G.joueurs(), rec = G.lire('record:tendance', 0);
+  $app.innerHTML = `
+    <div class="entre pile">
+      <h1>Dessine la suite</h1>
+      <p class="doux">On te montre le début d'une vraie courbe : un mot dans les livres, un prénom à la maternité, une population. Prolonge-la du doigt jusqu'au bout, puis découvre la réalité.</p>
+    </div>
+    <section class="carte pile entre">
+      <h3>Seul</h3>
+      <p class="doux petit">${MANCHES} courbes, 1 000 points par courbe.${rec ? ` Ton record : <b>${G.fmt(rec)}</b> sur ${G.fmt(MANCHES * 1000)}.` : ''}</p>
+      <button class="btn jeu" data-act="solo">Jouer seul</button>
+    </section>
+    <section class="carte pile entre">
+      <h3>Chacun son tour</h3>
+      <p class="doux petit">Tout le monde dessine la même courbe sans voir celle des autres. On compare tous les tracés à la fin.</p>
+      <div id="ed"></div>
+      <button class="btn principal" data-act="groupe" ${J.length < 2 ? 'disabled' : ''}>Jouer à ${Math.max(J.length, 2)}</button>
+    </section>`;
+  G.editeurJoueurs(document.getElementById('ed'), accueil);
+}
+
+function demarrer(groupe) {
+  const noms = groupe ? G.joueurs() : ['Toi'];
+  P = { noms, series: G.tirer('tendance', SERIES, MANCHES), m: 0, j: 0, traces: [], scores: noms.map(() => 0), groupe };
+  manche();
+}
+
+function manche() {
+  P.traces = [];
+  P.j = 0;
+  P.groupe ? passe() : dessiner();
+}
+
+function passe() {
+  $app.innerHTML = `<div class="carte passe entre">
+    ${G.pastille(P.noms[P.j], P.j)}
+    <p class="doux">Courbe ${P.m + 1} sur ${MANCHES}. Passe le téléphone à</p>
+    <p class="nom">${G.esc(P.noms[P.j])}</p>
+    <button class="btn jeu" data-act="dessiner">C'est moi, je dessine</button>
+  </div>`;
+}
+
+// ---------- Dessin ----------
+function dessiner() {
+  const s = P.series[P.m], g = geo(s);
+  dessin = { vals: Array(g.fin - s.coupe).fill(null), an: s.coupe + 1 };
+  $app.innerHTML = `
+    <div class="hud entre"><div><span class="etiquette">Courbe ${P.m + 1} sur ${MANCHES}</span></div>
+      <span class="chiffre doux">${P.groupe ? G.esc(P.noms[P.j]) : G.fmt(P.scores[0]) + ' pts'}</span></div>
+    <div class="jauge"><i style="transform:scaleX(${P.m / MANCHES})"></i></div>
+    <section class="carte pile entre">
+      <h2 class="titre-serie">${G.esc(s.titre)}</h2>
+      <p class="doux petit">Unité : ${G.esc(s.unite)}. La courbe s'arrête en ${s.coupe}.</p>
+      <div class="graphe" id="graphe">${svgGraphe(s, `<path class="toi" id="trace"/><text class="zone-texte" id="invite" x="${(g.x(s.coupe) + W - M.d) / 2}" y="${H / 2}" text-anchor="middle"><tspan x="${(g.x(s.coupe) + W - M.d) / 2}">Dessine</tspan><tspan x="${(g.x(s.coupe) + W - M.d) / 2}" dy="22">la suite</tspan></text><circle class="curseur" id="cur" r="0"/>`)}</div>
+      <p class="doux petit" id="aide-dessin">Glisse le doigt dans la zone grisée jusqu'en ${g.fin}. Au clavier : flèches gauche et droite pour l'année, haut et bas pour la valeur.</p>
+      <button class="btn vert" id="valider" disabled>Dessine jusqu'en ${g.fin}</button>
+    </section>`;
+  brancherDessin(s, g);
+}
+
+function brancherDessin(s, g) {
+  const svg = document.querySelector('#graphe svg'), trace = document.getElementById('trace');
+  const btn = document.getElementById('valider'), cur = document.getElementById('cur');
+  const v0 = s.v[s.coupe - s.debut];
+  let dernier = null;
+  const maj = () => {
+    const pts = [[s.coupe, v0]];
+    for (let i = 0; i < dessin.vals.length && dessin.vals[i] !== null; i++) pts.push([s.coupe + 1 + i, dessin.vals[i]]);
+    trace.setAttribute('d', chemin(pts, g));
+    const fini = dessin.vals.every(v => v !== null);
+    btn.disabled = !fini;
+    btn.textContent = fini ? 'Valider mon tracé' : `Dessine jusqu'en ${g.fin}`;
+    document.getElementById('invite').style.opacity = dessin.vals.some(v => v !== null) ? 0 : 1;
+    const a = dessin.an, v = dessin.vals[a - s.coupe - 1];
+    cur.setAttribute('r', v === null || v === undefined ? 0 : 6);
+    if (v !== null && v !== undefined) { cur.setAttribute('cx', g.x(a)); cur.setAttribute('cy', g.y(v)); }
+    svg.setAttribute('aria-valuetext', v == null ? `${a} : pas encore dessiné` : `${a} : ${fmtV(v)}`);
+  };
+  // Pose une valeur sur l'année a, et remplit les années sautées depuis le point précédent.
+  const poser = (a, v) => {
+    a = Math.max(s.coupe + 1, Math.min(g.fin, Math.round(a)));
+    v = Math.max(0, Math.min(g.haut, v));
+    if (dernier && dernier[0] !== a) {
+      const [a0, w0] = dernier, sens = Math.sign(a - a0);
+      for (let k = a0 + sens; k !== a; k += sens) dessin.vals[k - s.coupe - 1] = w0 + (v - w0) * (k - a0) / (a - a0);
+    } else if (!dernier) {
+      // Premier contact : on relie depuis la fin de la courbe connue.
+      const prems = dessin.vals.findIndex(x => x === null);
+      const depA = prems <= 0 ? s.coupe : s.coupe + prems, depV = prems <= 0 ? v0 : dessin.vals[prems - 1];
+      for (let k = depA + 1; k < a; k++) if (dessin.vals[k - s.coupe - 1] === null) dessin.vals[k - s.coupe - 1] = depV + (v - depV) * (k - depA) / (a - depA);
+    }
+    dessin.vals[a - s.coupe - 1] = v;
+    dessin.an = a;
+    dernier = [a, v];
+    maj();
+  };
+  const point = e => {
+    const p = svg.createSVGPoint(); p.x = e.clientX; p.y = e.clientY;
+    return p.matrixTransform(svg.getScreenCTM().inverse());
+  };
+  svg.addEventListener('pointerdown', e => {
+    const p = point(e);
+    if (g.an(p.x) < s.coupe + 0.5 - 1) return;
+    svg.setPointerCapture(e.pointerId); dernier = null;
+    poser(g.an(p.x), g.val(p.y));
+  });
+  svg.addEventListener('pointermove', e => { if (svg.hasPointerCapture(e.pointerId)) { const p = point(e); poser(g.an(p.x), g.val(p.y)); } });
+  svg.addEventListener('pointerup', () => { dernier = null; });
+  svg.addEventListener('keydown', e => {
+    const i = dessin.an - s.coupe - 1, cour = dessin.vals[i] ?? (i ? dessin.vals[i - 1] : null) ?? v0;
+    const pas = g.haut / 40;
+    if (e.key === 'ArrowRight') { dernier = null; dessin.an = Math.min(g.fin, dessin.an + 1); const j = dessin.an - s.coupe - 1; if (dessin.vals[j] === null) poser(dessin.an, cour); else maj(); }
+    else if (e.key === 'ArrowLeft') { dessin.an = Math.max(s.coupe + 1, dessin.an - 1); maj(); }
+    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { dernier = null; poser(dessin.an, cour + (e.key === 'ArrowUp' ? pas : -pas)); }
+    else return;
+    e.preventDefault();
+  });
+  btn.onclick = () => valider(s, g);
+  maj();
+}
+
+function valider(s, g) {
+  P.traces.push(dessin.vals.slice());
+  // Historique de ce téléphone pour cette courbe : ce sont « les autres courbes » en solo.
+  const cle = 'hist:' + s.titre, hist = G.lire(cle, []);
+  hist.push(dessin.vals.map(v => +v.toPrecision(3)));
+  G.ecrire(cle, hist.slice(-40));
+  if (P.groupe && P.j < P.noms.length - 1) { P.j++; passe(); return; }
+  reveler(s, g, hist.slice(0, -P.traces.length));
+}
+
+function reveler(s, g, anciens) {
+  const cachee = s.v.slice(s.coupe - s.debut + 1);
+  const v0 = s.v[s.coupe - s.debut];
+  const vers = vals => [[s.coupe, v0], ...vals.map((v, i) => [s.coupe + 1 + i, v])];
+  const res = P.traces.map((vals, k) => {
+    const err = vals.reduce((t, v, i) => t + Math.abs(v - cachee[i]), 0) / vals.length;
+    const pts = points(err, g.haut);
+    P.scores[k] += pts;
+    return { err, pts };
+  });
+  const lignesAutres = anciens.filter(a => a.length === cachee.length).map(a => `<path class="autre" d="${chemin(vers(a), g)}"/>`).join('');
+  const lignesJoueurs = P.traces.map((vals, k) => `<path class="${P.groupe ? 'joueur-l' : 'toi'}" style="${P.groupe ? 'stroke:' + G.couleur(k) : ''}" d="${chemin(vers(vals), g)}"/>`).join('');
+  const vraieFin = `<path class="vraie revele" d="${chemin(vers(cachee), g)}"/>`;
+  const dernier = P.m === MANCHES - 1;
+  $app.innerHTML = `
+    <div class="hud"><span class="etiquette">Courbe ${P.m + 1} sur ${MANCHES}</span>
+      <span class="chiffre doux">${P.groupe ? '' : G.fmt(P.scores[0]) + ' pts'}</span></div>
+    <div class="jauge"><i style="transform:scaleX(${(P.m + 1) / MANCHES})"></i></div>
+    <section class="carte pile entre">
+      ${P.groupe ? `<h2 class="titre-serie">${G.esc(s.titre)}</h2>` : ''}
+      <div class="graphe">${svgGraphe(s, lignesAutres + lignesJoueurs + vraieFin)}</div>
+      <div class="legende">
+        <span><i style="--l:var(--encre)"></i>Réalité</span>
+        ${P.groupe ? P.noms.map((n, k) => `<span><i style="--l:${G.couleur(k)}"></i>${G.esc(n)}</span>`).join('') : '<span><i style="--l:var(--rose)"></i>Ton tracé</span>'}
+        ${lignesAutres ? `<span><i style="--l:#60A5FA"></i>Tracés précédents sur ce téléphone</span>` : ''}
+      </div>
+      ${P.groupe ? `<ul class="classement">${res.map((r, k) => ({ ...r, k })).sort((a, b) => b.pts - a.pts).map(r => `<li>${G.pastille(P.noms[r.k], r.k)}<span class="n">${G.esc(P.noms[r.k])}<br><span class="doux petit">Écart moyen de ${fmtV(r.err)}</span></span><span class="pts">${r.pts} pts</span></li>`).join('')}</ul>`
+        : `<div class="resultat"><h3 class="titre-serie">${G.esc(s.titre)}</h3><span class="pts">${res[0].pts} pts</span>
+          <p class="doux petit" style="grid-column:1/-1">Écart moyen de ${fmtV(res[0].err)} ${G.esc(s.unite)}.</p></div>`}
+      <p class="doux petit">En ${g.fin} : ${fmtV(s.v.at(-1))} ${G.esc(s.unite)}. Source : ${G.esc(s.source)}.</p>
+      <button class="btn principal" data-act="suite">${dernier ? 'Voir le score final' : 'Courbe suivante'}</button>
+    </section>`;
+  G.vibrer(20);
+}
+
+function fin() {
+  const max = MANCHES * 1000;
+  let corps;
+  if (P.groupe) {
+    const ordre = P.noms.map((n, k) => ({ n, k, s: P.scores[k] })).sort((a, b) => b.s - a.s);
+    corps = `<h2>${G.esc(ordre[0].n)} gagne</h2>
+      <ul class="classement">${ordre.map(o => `<li>${G.pastille(o.n, o.k)}<span class="n">${G.esc(o.n)}</span><span class="chiffre">${G.fmt(o.s)}</span></li>`).join('')}</ul>`;
+  } else {
+    const ancien = G.record('tendance', P.scores[0]);
+    corps = `<p class="hud"><span class="score chiffre">${G.fmt(P.scores[0])}<small> / ${G.fmt(max)}</small></span></p>
+      <p class="doux">${P.scores[0] > ancien ? 'Nouveau record sur ce téléphone.' : `Ton record reste ${G.fmt(ancien)}.`}</p>`;
+  }
+  $app.innerHTML = `<section class="carte pile entre">${corps}
+    <button class="btn jeu" data-act="rejouer">Rejouer</button>
+    <button class="btn" data-act="accueil">Changer de mode</button></section>`;
+}
+
+const actions = {
+  solo: () => demarrer(false), groupe: () => demarrer(true), dessiner,
+  suite: () => { if (++P.m < MANCHES) manche(); else fin(); },
+  rejouer: () => demarrer(P.groupe), accueil,
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && actions[b.dataset.act]) actions[b.dataset.act](); });
+document.getElementById('aide').onclick = () => G.modale(`<h2>Comment jouer</h2>
+  <div class="regles"><ul>
+    <li>Chaque courbe est une vraie série de données : fréquence d'un mot dans les livres en français, prénoms donnés en France, statistiques de la Banque mondiale.</li>
+    <li>On te montre le début. Dessine la suite du doigt dans la zone grisée, année par année, jusqu'au bout.</li>
+    <li>Plus ton tracé colle à la réalité, plus tu marques : 1 000 points pour un tracé parfait.</li>
+    <li>À plusieurs, chacun dessine en secret, puis tous les tracés s'affichent ensemble.</li>
+  </ul></div>
+  <button class="btn principal" onclick="G.fermer()">Compris</button>`);
+accueil();
+  </script>
+</body>
+</html>

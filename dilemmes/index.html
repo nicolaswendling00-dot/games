@@ -1,0 +1,139 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Dilemmes, Games</title>
+  <meta name="theme-color" content="#FFFDF5">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../commun.css">
+  <style>
+    .options { display: grid; gap: 10px; }
+    .option { min-height: 110px; justify-content: center; text-align: center; font-family: var(--titre); font-weight: 800; font-size: clamp(1.2rem, 5vw, 1.5rem); line-height: 1.15; }
+    .option.b { background: #FFF7ED; border-color: #EA580C; box-shadow: 0 3px 0 #9A3412; }
+    .option.a { background: var(--c-clair); border-color: var(--c); box-shadow: 0 3px 0 var(--c-bord); }
+    .ou { text-align: center; font-family: var(--titre); font-weight: 900; color: var(--encre-2); margin: -4px 0; }
+    .vote-j { display: grid; grid-template-columns: 1fr auto auto; gap: 8px; align-items: center; font-weight: 700; }
+    .vote-j .nom { display: flex; align-items: center; gap: 8px; min-width: 0; }
+    .vote-j .choix { width: auto; min-height: 44px; padding: 6px 14px; font-family: var(--titre); }
+    .vote-j .choix { border-color: var(--c); color: var(--c-bord); }
+    .vote-j .choix.vb { border-color: #EA580C; color: #9A3412; }
+    .vote-j .choix[aria-pressed="true"] { background: var(--c-bord); color: #fff; box-shadow: 0 3px 0 var(--encre); }
+    .vote-j .choix.vb[aria-pressed="true"] { background: #C2410C; border-color: #C2410C; color: #fff; }
+    .barres { display: flex; flex-direction: column; gap: 6px; }
+    .barre-part { display: flex; height: 48px; border-radius: 14px; overflow: hidden; border: 1.6px solid var(--bord); }
+    .barre-part span { display: flex; align-items: center; padding: 0 12px; font-family: var(--titre); font-weight: 900; color: #fff; white-space: nowrap; transform-origin: left; animation: pousse 700ms cubic-bezier(.22, 1, .36, 1) both; }
+    .barre-part .pa { background: var(--c-bord); }
+    .barre-part .pb { background: #C2410C; justify-content: flex-end; }
+    @keyframes pousse { from { transform: scaleX(0); } }
+    .legende-d { display: flex; justify-content: space-between; gap: 12px; font-weight: 700; font-size: .9rem; }
+    .legende-d span:last-child { text-align: right; }
+  </style>
+</head>
+<body data-jeu="dilemmes">
+  <header class="entete">
+    <a class="marque" href="../" aria-label="Retour à Games"></a>
+    <span class="pilule-jeu"></span>
+    <div class="droite"></div>
+  </header>
+  <main class="app" id="app" aria-live="polite"></main>
+  <div id="modale" class="modale" hidden></div>
+  <script src="../commun.js"></script>
+  <script src="data.js"></script>
+  <script>
+'use strict';
+const $app = document.getElementById('app');
+let P = null;
+
+// Statistiques cumulées sur ce téléphone, par dilemme : { "A|B": [votes A, votes B] }.
+const stats = () => G.lire('dilemmes:stats', {});
+
+function accueil() {
+  const J = G.joueurs();
+  $app.innerHTML = `<div class="entre pile">
+      <h1>Tu préfères ?</h1>
+      <p class="doux">Deux choix, aucun bon. Chacun tranche, puis on découvre comment la table s'est partagée et ce qu'ont répondu tous ceux qui ont joué sur ce téléphone.</p>
+    </div>
+    <section class="carte pile entre">
+      <h3>Seul</h3>
+      <button class="btn jeu" data-act="seul">Jouer seul</button>
+    </section>
+    <section class="carte pile entre">
+      <h3>Autour de la table</h3>
+      <div id="ed"></div>
+      <button class="btn principal" data-act="groupe" ${J.length < 2 ? 'disabled' : ''}>Jouer à ${Math.max(J.length, 2)}</button>
+    </section>`;
+  G.editeurJoueurs(document.getElementById('ed'), accueil);
+}
+
+function demarrer(groupe) {
+  P = { noms: groupe ? G.joueurs() : null, n: 0 };
+  suivant();
+}
+
+function suivant() {
+  P.d = G.tirer('dilemmes', DILEMMES, 1)[0];
+  P.votes = P.noms ? P.noms.map(() => null) : [null];
+  P.n++;
+  question();
+}
+
+function question() {
+  const [a, b] = P.d;
+  const tous = P.votes.every(v => v !== null);
+  $app.innerHTML = `<div class="hud"><span class="etiquette">Dilemme ${P.n}</span><button class="lien" data-act="accueil">Changer de mode</button></div>
+    <section class="carte pile entre">
+      <h2 class="centre">Tu préfères…</h2>
+      ${P.noms ? `
+        <div class="options"><div class="choix option a" aria-hidden="true">${G.esc(a)}</div><p class="ou">ou</p><div class="choix option b" aria-hidden="true">${G.esc(b)}</div></div>
+        <div class="pile">${P.noms.map((n, i) => `<div class="vote-j"><span class="nom">${G.pastille(n, i)}${G.esc(n)}</span>
+          <button class="choix" data-act="vote" data-i="${i}" data-v="0" aria-pressed="${P.votes[i] === 0}" aria-label="${G.esc(n)} choisit : ${G.esc(a)}">Haut</button>
+          <button class="choix vb" data-act="vote" data-i="${i}" data-v="1" aria-pressed="${P.votes[i] === 1}" aria-label="${G.esc(n)} choisit : ${G.esc(b)}">Bas</button></div>`).join('')}</div>
+        <button class="btn jeu" data-act="reveler" ${tous ? '' : 'disabled'}>${tous ? 'Voir les résultats' : 'Tout le monde doit choisir'}</button>`
+      : `<div class="options">
+          <button class="choix option a" data-act="seul-vote" data-v="0">${G.esc(a)}</button><p class="ou">ou</p>
+          <button class="choix option b" data-act="seul-vote" data-v="1">${G.esc(b)}</button></div>`}
+    </section>`;
+}
+
+function barre(na, nb) {
+  const t = na + nb, pa = t ? Math.round(na / t * 100) : 50;
+  return `<div class="barre-part" role="img" aria-label="${pa} % contre ${100 - pa} %">
+    ${pa ? `<span class="pa" style="flex:${pa}">${pa} %</span>` : ''}${100 - pa ? `<span class="pb" style="flex:${100 - pa}">${100 - pa} %</span>` : ''}</div>`;
+}
+
+function reveler() {
+  const [a, b] = P.d, cle = a + '|' + b, S = stats();
+  const na = P.votes.filter(v => v === 0).length, nb = P.votes.length - na;
+  const c = S[cle] || [0, 0];
+  S[cle] = [c[0] + na, c[1] + nb];
+  G.ecrire('dilemmes:stats', S);
+  const [ta, tb] = S[cle];
+  const camp = v => P.noms.filter((_, i) => P.votes[i] === v).map(G.esc).join(', ') || 'personne';
+  $app.innerHTML = `<div class="hud"><span class="etiquette">Dilemme ${P.n}</span></div>
+    <section class="carte pile entre">
+      <div class="legende-d"><span>${G.esc(a)}</span><span>${G.esc(b)}</span></div>
+      ${P.noms ? `<div class="barres"><h3>Autour de la table</h3>${barre(na, nb)}
+          <p class="doux petit">${camp(0)} d'un côté, ${camp(1)} de l'autre.</p></div>`
+        : `<p class="doux">Tu as choisi <b>${G.esc(P.votes[0] === 0 ? a : b)}</b>.</p>`}
+      <div class="barres"><h3>Sur ce téléphone</h3>${barre(ta, tb)}
+        <p class="doux petit">${ta + tb} réponse${ta + tb > 1 ? 's' : ''} enregistrée${ta + tb > 1 ? 's' : ''} à ce dilemme sur cet appareil, la tienne comprise.</p></div>
+      <button class="btn principal" data-act="suivant">Dilemme suivant</button>
+    </section>`;
+  G.vibrer(15);
+}
+
+const actions = {
+  seul: () => demarrer(false), groupe: () => demarrer(true), accueil, suivant, reveler,
+  vote(d) { P.votes[+d.i] = +d.v; question(); },
+  'seul-vote'(d) { P.votes[0] = +d.v; reveler(); },
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && actions[b.dataset.act]) actions[b.dataset.act](b.dataset); });
+accueil();
+  </script>
+</body>
+</html>

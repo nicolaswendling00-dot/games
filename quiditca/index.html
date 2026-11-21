@@ -1,0 +1,103 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Qui a dit ça, Games</title>
+  <meta name="theme-color" content="#FFFDF5">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../commun.css">
+  <style>
+    .citation { font-family: var(--titre); font-weight: 800; font-size: clamp(1.35rem, 5vw, 1.8rem); line-height: 1.2; text-wrap: balance; }
+    .citation::before { content: '« '; color: var(--c); }
+    .citation::after { content: ' »'; color: var(--c); }
+    .note { background: var(--creux); border-radius: 16px; padding: 12px 14px; }
+  </style>
+</head>
+<body data-jeu="quiditca">
+  <header class="entete">
+    <a class="marque" href="../" aria-label="Retour à Games"></a>
+    <span class="pilule-jeu"></span>
+    <div class="droite"></div>
+  </header>
+  <main class="app" id="app" aria-live="polite"></main>
+  <div id="modale" class="modale" hidden></div>
+  <script src="../commun.js"></script>
+  <script src="data.js"></script>
+  <script>
+'use strict';
+const TOURS = 10;
+const $app = document.getElementById('app');
+let P = null;
+
+function question(c) {
+  const [texte, auteur, famille, note] = c;
+  const autres = [...new Set(CITATIONS.filter(x => x[2] === famille && x[1] !== auteur).map(x => x[1]))];
+  return { texte, auteur, note, choix: G.melanger([auteur, ...G.melanger(autres).slice(0, 3)]) };
+}
+for (const f of new Set(CITATIONS.map(c => c[2])))
+  console.assert(new Set(CITATIONS.filter(c => c[2] === f).map(c => c[1])).size >= 4, 'pas assez d\'auteurs dans ' + f);
+
+function accueil() {
+  const rec = G.lire('record:quiditca', 0);
+  $app.innerHTML = `<div class="entre pile">
+      <h1>Qui a dit ça ?</h1>
+      <p class="doux">Une phrase célèbre, quatre noms. Philosophes, écrivains, politiques, savants, sportifs ou personnages de films : à toi de rendre chaque citation à son auteur.</p>
+    </div>
+    <section class="carte pile entre">
+      <p class="doux">${TOURS} citations, 100 points par bonne réponse.${rec ? ` Ton record : <b>${G.fmt(rec)}</b>.` : ''}</p>
+      <button class="btn jeu" data-act="jouer">Commencer</button>
+    </section>`;
+}
+
+function jouer() {
+  P = { qs: G.tirer('quiditca', CITATIONS, TOURS).map(question), i: 0, score: 0, rep: null };
+  tour();
+}
+
+function tour() {
+  const q = P.qs[P.i], fini = P.rep !== null;
+  $app.innerHTML = `<div class="hud"><span class="etiquette">Citation ${P.i + 1} sur ${TOURS}</span><span class="chiffre doux">${G.fmt(P.score)} pts</span></div>
+    <div class="jauge"><i style="transform:scaleX(${(P.i + (fini ? 1 : 0)) / TOURS})"></i></div>
+    <section class="carte pile entre">
+      <p class="citation">${G.esc(q.texte)}</p>
+      <div class="pile" role="group" aria-label="Auteurs possibles">
+        ${q.choix.map(a => `<button class="choix ${fini ? (a === q.auteur ? 'bon' : a === P.rep ? 'faux' : '') : ''}" data-act="rep" data-a="${G.esc(a)}" ${fini ? 'disabled' : ''}>${G.esc(a)}</button>`).join('')}
+      </div>
+      ${fini ? `<p><span class="etiquette ${P.rep === q.auteur ? 'vert' : 'rouge'}">${P.rep === q.auteur ? 'Bien vu' : 'Raté'}</span></p>
+        ${q.note ? `<p class="note">${G.esc(q.note)}</p>` : ''}
+        <button class="btn principal" data-act="suite">${P.i < TOURS - 1 ? 'Citation suivante' : 'Voir mon score'}</button>` : ''}
+    </section>`;
+  if (fini) document.querySelector('[data-act="suite"]').focus({ preventScroll: true });
+}
+
+function fin() {
+  const ancien = G.record('quiditca', P.score);
+  $app.innerHTML = `<section class="carte pile entre">
+    <p class="hud"><span class="score chiffre">${G.fmt(P.score)}<small> / ${G.fmt(TOURS * 100)}</small></span></p>
+    <p class="doux">${P.score > ancien ? 'Nouveau record sur ce téléphone.' : `Ton record reste ${G.fmt(ancien)}.`}</p>
+    <button class="btn jeu" data-act="jouer">Rejouer</button>
+    <a class="btn" href="../">Autres jeux</a></section>`;
+}
+
+const actions = {
+  jouer,
+  rep(d) {
+    if (P.rep !== null) return;
+    P.rep = d.a;
+    const ok = d.a === P.qs[P.i].auteur;
+    if (ok) P.score += 100;
+    G.vibrer(ok ? 15 : [10, 40, 10]);
+    tour();
+  },
+  suite() { P.rep = null; if (++P.i < TOURS) tour(); else fin(); },
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && actions[b.dataset.act]) actions[b.dataset.act](b.dataset); });
+accueil();
+  </script>
+</body>
+</html>

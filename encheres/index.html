@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Enchères, Games</title>
+  <meta name="theme-color" content="#FFFDF5">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../commun.css">
+  <style>
+    .categorie { font-family: var(--titre); font-weight: 900; font-size: clamp(1.7rem, 7vw, 2.4rem); line-height: 1.08; text-align: center; text-wrap: balance; }
+    .grille-j { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 8px; }
+    .grille-j .choix { gap: 8px; }
+    .pas { display: flex; align-items: center; justify-content: center; gap: 18px; }
+    .pas .rond { width: 58px; height: 58px; font-size: 1.6rem; }
+    .pas output { font-family: var(--titre); font-weight: 900; font-size: 3.4rem; min-width: 2ch; text-align: center; line-height: 1; }
+    .compte { font-family: var(--titre); font-weight: 900; font-size: clamp(4rem, 22vw, 6.5rem); line-height: 1; text-align: center; font-variant-numeric: tabular-nums; }
+    .compte small { font-size: .35em; color: var(--encre-2); }
+    .temps { font-family: var(--titre); font-weight: 900; font-size: 1.6rem; text-align: center; font-variant-numeric: tabular-nums; }
+    .temps.urgent { color: var(--rouge); }
+    .plus { min-height: 96px; font-size: 1.6rem; }
+    .scores li { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-weight: 700; }
+    .scores li .n { flex: 1; }
+    .scores { list-style: none; margin: 0; padding: 0; }
+  </style>
+</head>
+<body data-jeu="encheres">
+  <header class="entete">
+    <a class="marque" href="../" aria-label="Retour à Games"></a>
+    <span class="pilule-jeu"></span>
+    <div class="droite"><button class="rond" id="aide" aria-label="Règles">?</button></div>
+  </header>
+  <main class="app" id="app" aria-live="polite"></main>
+  <div id="modale" class="modale" hidden></div>
+  <script src="../commun.js"></script>
+  <script src="../donnees/categories.js"></script>
+  <script>
+'use strict';
+const DUREE = 30;
+const $app = document.getElementById('app');
+let P = null, chrono = null;
+
+function accueil() {
+  clearInterval(chrono);
+  const J = G.joueurs();
+  $app.innerHTML = `<div class="entre pile">
+      <h1>Qui dit mieux ?</h1>
+      <p class="doux">Une catégorie tombe. À tour de rôle, chacun annonce combien d'éléments il est capable de citer. Celui qui annonce le plus doit tenir sa promesse en ${DUREE} secondes, sous l'œil des autres.</p>
+    </div>
+    <section class="carte pile entre">
+      <h3>Joueurs</h3>
+      <div id="ed"></div>
+      <button class="btn jeu" data-act="jouer" ${J.length < 2 ? 'disabled' : ''}>Commencer${J.length < 2 ? ' (2 joueurs minimum)' : ''}</button>
+    </section>`;
+  G.editeurJoueurs(document.getElementById('ed'), accueil);
+}
+
+function jouer() {
+  P = { noms: G.joueurs(), scores: G.joueurs().map(() => 0), manche: 0 };
+  manche();
+}
+
+function manche() {
+  P.manche++;
+  P.cat = G.tirer('encheres', CATEGORIES, 1)[0];
+  P.qui = null; P.mise = 3; P.dits = 0;
+  encheres();
+}
+
+function encheres() {
+  $app.innerHTML = `<div class="hud"><span class="etiquette">Manche ${P.manche}</span><button class="lien" data-act="scores">Scores</button></div>
+    <section class="carte pile entre">
+      <p class="categorie">${G.esc(P.cat)}</p>
+      <p class="doux centre">Faites monter les enchères à voix haute, puis indiquez qui a gagné et sa mise.</p>
+      <div class="pas"><button class="rond" data-act="moins" aria-label="Diminuer la mise">−</button>
+        <output aria-live="polite">${P.mise}</output>
+        <button class="rond" data-act="plus" aria-label="Augmenter la mise">+</button></div>
+      <div class="grille-j" role="group" aria-label="Joueur qui remporte l'enchère">
+        ${P.noms.map((n, i) => `<button class="choix" data-act="qui" data-i="${i}" aria-pressed="${P.qui === i}">${G.pastille(n, i)}${G.esc(n)}</button>`).join('')}
+      </div>
+      <button class="btn jeu" data-act="defi" ${P.qui === null ? 'disabled' : ''}>${P.qui === null ? 'Choisis le joueur' : `${G.esc(P.noms[P.qui])} en cite ${P.mise}, top chrono`}</button>
+      <button class="btn" data-act="changer">Autre catégorie</button>
+    </section>`;
+}
+
+function defi() {
+  P.fin = Date.now() + DUREE * 1000;
+  const rendre = () => {
+    const reste = Math.max(0, Math.ceil((P.fin - Date.now()) / 1000));
+    $app.innerHTML = `<section class="carte pile entre">
+        <p class="doux centre">${G.esc(P.noms[P.qui])} cite des <b>${G.esc(P.cat.toLowerCase())}</b></p>
+        <p class="compte">${P.dits}<small> / ${P.mise}</small></p>
+        <p class="temps ${reste <= 5 ? 'urgent' : ''}">${reste} s</p>
+        <button class="btn vert plus" data-act="ok">Validé</button>
+        <button class="btn" data-act="annule" ${P.dits ? '' : 'disabled'}>Annuler le dernier</button>
+      </section>`;
+  };
+  rendre();
+  clearInterval(chrono);
+  chrono = setInterval(() => {
+    const reste = (P.fin - Date.now()) / 1000;
+    if (reste <= 0) return verdict(false);
+    const t = document.querySelector('.temps');
+    if (t) { t.textContent = Math.ceil(reste) + ' s'; t.classList.toggle('urgent', reste <= 5); }
+    if (reste <= 5) G.son(880, 0.05);
+  }, 1000);
+  P.rendre = rendre;
+}
+
+function verdict(reussi) {
+  clearInterval(chrono);
+  if (reussi) P.scores[P.qui] += P.mise;
+  else P.scores.forEach((_, i) => { if (i !== P.qui) P.scores[i] += 1; });
+  G.vibrer(reussi ? 30 : [200, 80, 200]);
+  if (!reussi) G.son(160, 0.5, 'sawtooth', 0.12);
+  $app.innerHTML = `<section class="carte pile entre centre">
+      <h2>${reussi ? `${G.esc(P.noms[P.qui])} a tenu parole` : `Raté pour ${G.esc(P.noms[P.qui])}`}</h2>
+      <p class="doux">${reussi ? `+${P.mise} points pour ${G.esc(P.noms[P.qui])}.` : `${P.dits} sur ${P.mise}. Tous les autres gagnent 1 point.`}</p>
+    </section>
+    ${tableau()}
+    <button class="btn jeu" data-act="suivante">Manche suivante</button>
+    <button class="btn" data-act="accueil">Changer les joueurs</button>`;
+}
+
+function tableau() {
+  const ordre = P.noms.map((n, i) => ({ n, i, s: P.scores[i] })).sort((a, b) => b.s - a.s);
+  return `<section class="carte"><h3>Scores</h3><ul class="scores">${ordre.map(o => `<li>${G.pastille(o.n, o.i)}<span class="n">${G.esc(o.n)}</span><span class="chiffre">${o.s}</span></li>`).join('')}</ul></section>`;
+}
+
+const actions = {
+  jouer, accueil,
+  plus() { P.mise = Math.min(50, P.mise + 1); encheres(); },
+  moins() { P.mise = Math.max(1, P.mise - 1); encheres(); },
+  qui(d) { P.qui = +d.i; encheres(); },
+  changer() { P.cat = G.tirer('encheres', CATEGORIES, 1)[0]; encheres(); },
+  defi() { P.dits = 0; defi(); },
+  ok() { P.dits++; G.son(1320, 0.06, 'triangle', 0.1); G.vibrer(10); if (P.dits >= P.mise) verdict(true); else P.rendre(); },
+  annule() { P.dits = Math.max(0, P.dits - 1); P.rendre(); },
+  suivante: manche,
+  scores() { G.modale(`${tableau()}<button class="btn principal" onclick="G.fermer()">Fermer</button>`); },
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && actions[b.dataset.act]) actions[b.dataset.act](b.dataset); });
+document.getElementById('aide').onclick = () => G.modale(`<h2>Comment jouer</h2>
+  <div class="regles"><ul>
+    <li>Une catégorie s'affiche, par exemple « Fromages ».</li>
+    <li>Chacun son tour, on surenchérit à voix haute : « J'en cite 5 », « Moi 7 »… On peut passer.</li>
+    <li>Le dernier à avoir enchéri choisit sa mise sur le téléphone et a ${DUREE} secondes pour citer autant d'éléments. Les autres valident chaque réponse correcte.</li>
+    <li>Réussi : il gagne autant de points que sa mise. Raté : tous les autres gagnent 1 point.</li>
+  </ul></div>
+  <button class="btn principal" onclick="G.fermer()">Compris</button>`);
+accueil();
+  </script>
+</body>
+</html>

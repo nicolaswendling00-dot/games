@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Games</title>
+  <meta name="description" content="Neuf jeux pour les soirées et les pauses : imposteur, faux dico, bombe, enchères, dilemmes, courbes à prolonger, ordres de grandeur, citations et anecdotes.">
+  <meta name="theme-color" content="#FFFDF5">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Games">
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="commun.css">
+  <style>
+    .accueil { max-width: 1000px; gap: 28px; }
+    .accueil h1 { margin-bottom: 6px; }
+    .section { display: flex; flex-direction: column; gap: 12px; }
+    .grille { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 12px; }
+    .tuile { --tc: #2563EB; display: grid; grid-template-columns: 56px 1fr auto; align-items: center; gap: 14px; padding: 14px 16px; text-decoration: none;
+      background: var(--tc-clair); border: 1.6px solid var(--tc); border-radius: 20px; box-shadow: 0 4px 0 var(--tc); min-height: 92px; }
+    .tuile svg { width: 56px; height: 56px; }
+    .tuile b { font-family: var(--titre); font-weight: 800; font-size: 1.2rem; display: block; }
+    .tuile span.p { font-size: .9rem; color: var(--encre-2); display: block; line-height: 1.35; }
+    .tuile .rec { font-family: var(--titre); font-weight: 800; font-size: .85rem; color: var(--tc-texte); display: block; margin-top: 4px; }
+    .tuile .fl { width: 22px; height: 22px; color: var(--tc-texte); }
+  </style>
+</head>
+<body>
+  <header class="entete">
+    <a class="marque" href="./" aria-label="Games, accueil"></a>
+    <span></span>
+    <div class="droite"></div>
+  </header>
+  <main class="app accueil">
+    <div class="entre">
+      <h1>Ce soir, on joue à quoi ?</h1>
+      <p class="doux">Neuf jeux qui tiennent dans un téléphone. Les jeux de groupe se jouent en se le passant de main en main.</p>
+    </div>
+    <section class="section">
+      <h2>À plusieurs, un seul téléphone</h2>
+      <div class="grille" id="groupe"></div>
+    </section>
+    <section class="section">
+      <h2>Seul ou chacun son tour</h2>
+      <div class="grille" id="solo"></div>
+    </section>
+  </main>
+  <div id="modale" class="modale" hidden></div>
+  <script src="commun.js"></script>
+  <script>
+    const fleche = '<svg class="fl" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>';
+    for (const cote of ['groupe', 'solo']) {
+      document.getElementById(cote).innerHTML = JEUX.filter(j => j.groupe === (cote === 'groupe')).map((j, k) => {
+        const rec = G.lire('record:' + j.id, 0);
+        return `<a class="tuile entre" href="${j.id}/" style="--tc:${j.c[0]};--tc-clair:${j.c[1]};--tc-texte:${j.c[2]};animation-delay:${k * 40}ms">
+          ${icone(j.id)}<span><b>${j.nom}</b><span class="p">${j.pitch}</span>${rec ? `<span class="rec">Record : ${G.fmt(rec)} pts</span>` : ''}</span>${fleche}</a>`;
+      }).join('');
+    }
+  </script>
+</body>
+</html>

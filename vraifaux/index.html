@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Vrai ou inventé, Games</title>
+  <meta name="theme-color" content="#FFFDF5">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../commun.css">
+  <style>
+    .affirmation { font-family: var(--titre); font-weight: 800; font-size: clamp(1.35rem, 5vw, 1.75rem); line-height: 1.2; text-wrap: balance; }
+    .deux { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+    .deux .choix { justify-content: center; font-family: var(--titre); font-weight: 900; font-size: 1.15rem; min-height: 64px; }
+    .note { background: var(--creux); border-radius: 16px; padding: 12px 14px; }
+    .serie { font-family: var(--titre); font-weight: 800; color: var(--c-bord); }
+  </style>
+</head>
+<body data-jeu="vraifaux">
+  <header class="entete">
+    <a class="marque" href="../" aria-label="Retour à Games"></a>
+    <span class="pilule-jeu"></span>
+    <div class="droite"></div>
+  </header>
+  <main class="app" id="app" aria-live="polite"></main>
+  <div id="modale" class="modale" hidden></div>
+  <script src="../commun.js"></script>
+  <script src="data.js"></script>
+  <script>
+'use strict';
+const TOURS = 12;
+const $app = document.getElementById('app');
+let P = null;
+
+function accueil() {
+  const rec = G.lire('record:vraifaux', 0);
+  $app.innerHTML = `<div class="entre pile">
+      <h1>Vrai ou inventé ?</h1>
+      <p class="doux">Des anecdotes étonnantes sur les animaux, l'histoire, l'espace ou le corps humain. Certaines sont vraies, d'autres sont des idées reçues ou de pures inventions.</p>
+    </div>
+    <section class="carte pile entre">
+      <p class="doux">${TOURS} affirmations, 100 points par bonne réponse, 50 de bonus à partir de trois bonnes réponses de suite.${rec ? ` Ton record : <b>${G.fmt(rec)}</b>.` : ''}</p>
+      <button class="btn jeu" data-act="jouer">Commencer</button>
+    </section>`;
+}
+
+function jouer() {
+  P = { qs: G.tirer('vraifaux', ANECDOTES, TOURS), i: 0, score: 0, serie: 0, rep: null };
+  tour();
+}
+
+function tour() {
+  const [texte, vrai, explication] = P.qs[P.i], fini = P.rep !== null, bon = P.rep === vrai;
+  const cls = v => !fini ? '' : v === vrai ? 'bon' : v === P.rep ? 'faux' : '';
+  $app.innerHTML = `<div class="hud"><span class="etiquette">Anecdote ${P.i + 1} sur ${TOURS}</span>
+      <span class="chiffre doux">${P.serie >= 2 ? `<span class="serie">Série de ${P.serie}</span>, ` : ''}${G.fmt(P.score)} pts</span></div>
+    <div class="jauge"><i style="transform:scaleX(${(P.i + (fini ? 1 : 0)) / TOURS})"></i></div>
+    <section class="carte pile entre">
+      <p class="affirmation">${G.esc(texte)}</p>
+      <div class="deux">
+        <button class="choix ${cls(true)}" data-act="rep" data-v="1" ${fini ? 'disabled' : ''}>Vrai</button>
+        <button class="choix ${cls(false)}" data-act="rep" data-v="0" ${fini ? 'disabled' : ''}>Inventé</button>
+      </div>
+      ${fini ? `<p><span class="etiquette ${bon ? 'vert' : 'rouge'}">${bon ? 'Bien vu' : 'Raté'}</span></p>
+        <p class="note">${G.esc(explication)}</p>
+        <button class="btn principal" data-act="suite">${P.i < TOURS - 1 ? 'Anecdote suivante' : 'Voir mon score'}</button>` : ''}
+    </section>`;
+  if (fini) document.querySelector('[data-act="suite"]').focus({ preventScroll: true });
+}
+
+function fin() {
+  const ancien = G.record('vraifaux', P.score);
+  $app.innerHTML = `<section class="carte pile entre">
+    <p class="hud"><span class="score chiffre">${G.fmt(P.score)}<small> pts</small></span></p>
+    <p class="doux">${P.score > ancien ? 'Nouveau record sur ce téléphone.' : `Ton record reste ${G.fmt(ancien)}.`}</p>
+    <button class="btn jeu" data-act="jouer">Rejouer</button>
+    <a class="btn" href="../">Autres jeux</a></section>`;
+}
+
+const actions = {
+  jouer,
+  rep(d) {
+    if (P.rep !== null) return;
+    P.rep = d.v === '1';
+    if (P.rep === P.qs[P.i][1]) { P.serie++; P.score += 100 + (P.serie >= 3 ? 50 : 0); G.vibrer(15); }
+    else { P.serie = 0; G.vibrer([10, 40, 10]); }
+    tour();
+  },
+  suite() { P.rep = null; if (++P.i < TOURS) tour(); else fin(); },
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && actions[b.dataset.act]) actions[b.dataset.act](b.dataset); });
+accueil();
+  </script>
+</body>
+</html>

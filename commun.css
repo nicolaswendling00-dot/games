@@ -1,0 +1,126 @@
+/* Games : DA commune, reprise de GuessDash (fond crème, contours chauds, ombres décalées vers le bas). */
+:root {
+  --fond: #FFFDF5;
+  --carte: #FFFFFF;
+  --encre: #2C2520;
+  --encre-2: #6B6157;
+  --bord: #BDB4A7;
+  --ombre: #CCC2B5;
+  --creux: #F4EFE3;
+  --vert: #84CC16; --vert-bord: #628C1A; --vert-texte: #273C07; --vert-clair: #F0F9E3;
+  --orange: #C2410C; --orange-bord: #9A3412;
+  --rouge: #DC2626; --rouge-clair: #FDECEC;
+  --rose: #DB2777;
+  --bleu: #2563EB; --bleu-clair: #E8F0FE;
+  --nuit: #1E293B;
+  /* Couleur du jeu, redéfinie par chaque page */
+  --c: #2563EB; --c-clair: #E8F0FE; --c-bord: #1D4ED8;
+  --titre: 'Outfit', system-ui, sans-serif;
+  --texte: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --r: 24px;
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html { -webkit-text-size-adjust: 100%; }
+body { margin: 0; min-height: 100dvh; background: var(--fond); color: var(--encre); font: 16px/1.45 var(--texte); overscroll-behavior-y: none; }
+button, input, textarea, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+a { color: inherit; }
+[hidden] { display: none !important; }
+:focus-visible { outline: 3px solid var(--c); outline-offset: 2px; }
+h1, h2, h3 { font-family: var(--titre); font-weight: 800; line-height: 1.1; margin: 0; letter-spacing: -.01em; text-wrap: balance; }
+h1 { font-size: clamp(2rem, 7vw, 2.8rem); }
+h2 { font-size: 1.6rem; }
+h3 { font-size: 1.15rem; }
+p { margin: 0; }
+.doux { color: var(--encre-2); }
+.petit { font-size: .88rem; }
+.chiffre { font-family: var(--titre); font-weight: 800; font-variant-numeric: tabular-nums; }
+
+/* Barre du haut */
+.entete { position: sticky; top: 0; z-index: 10; background: var(--fond); display: grid; grid-template-columns: 1fr auto 1fr; align-items: center; gap: 8px;
+  padding: calc(env(safe-area-inset-top) + 10px) 16px 10px; box-shadow: 0 1.6px 0 var(--creux); }
+.marque { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; font-family: var(--titre); font-weight: 900; font-size: 1.2rem; justify-self: start; }
+.marque svg { width: 30px; height: 30px; flex: none; }
+.entete .droite { justify-self: end; display: flex; gap: 8px; }
+/* Sur téléphone, dans un jeu, le logo seul suffit : la pilule du jeu prend la place. */
+@media (max-width: 440px) { .entete:has(.pilule-jeu) .marque span { display: none; } }
+.pilule-jeu { display: inline-flex; align-items: center; gap: 8px; padding: 5px 16px 5px 6px; border-radius: 999px; font-family: var(--titre); font-weight: 800; font-size: 1.05rem;
+  background: var(--c-clair); color: var(--c-bord); border: 1.6px solid var(--c); box-shadow: 0 2px 0 var(--c-bord); white-space: nowrap; }
+.pilule-jeu svg { width: 28px; height: 28px; }
+.rond { width: 42px; height: 42px; border-radius: 50%; display: inline-grid; place-items: center; background: var(--carte); border: 1.6px solid var(--bord);
+  box-shadow: 0 2px 0 var(--ombre); font-family: var(--titre); font-weight: 900; font-size: 1.05rem; text-decoration: none; }
+.rond svg { width: 20px; height: 20px; }
+.rond:active, .btn:active, .tuile:active, .choix:active { transform: translateY(2px); box-shadow: none; }
+
+/* Mise en page */
+.app { max-width: 620px; margin: 0 auto; padding: 18px 16px calc(env(safe-area-inset-bottom) + 28px); display: flex; flex-direction: column; gap: 16px; }
+.carte { background: var(--carte); border: 1.6px solid var(--bord); border-radius: var(--r); box-shadow: 0 4px 0 var(--ombre); padding: 20px; }
+.pile { display: flex; flex-direction: column; gap: 10px; }
+.rangee { display: flex; gap: 10px; flex-wrap: wrap; }
+.rangee > * { flex: 1; }
+.centre { text-align: center; }
+.entre { animation: entre 360ms cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes entre { from { opacity: 0; transform: translateY(12px); } }
+
+/* Boutons */
+.btn { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 54px; padding: 12px 22px; border-radius: 999px; border: 1.6px solid var(--bord);
+  background: var(--carte); box-shadow: 0 3px 0 var(--ombre); font-family: var(--titre); font-weight: 900; font-size: 1.08rem; text-decoration: none; width: 100%; }
+.btn svg { width: 22px; height: 22px; flex: none; }
+.btn.principal { background: var(--nuit); color: #fff; border-color: var(--nuit); box-shadow: 0 3px 0 var(--vert-bord); }
+.btn.vert { background: var(--vert); color: var(--vert-texte); border-color: var(--vert-bord); box-shadow: 0 3px 0 var(--vert-bord); }
+.btn.jeu { background: var(--c-bord); color: #fff; border-color: var(--c-bord); box-shadow: 0 3px 0 var(--encre); }
+.btn.orange { background: var(--orange); color: #fff; border-color: var(--orange-bord); box-shadow: 0 3px 0 var(--orange-bord); }
+.btn.petit { min-height: 44px; font-size: .95rem; padding: 8px 16px; }
+.btn:disabled { opacity: .45; cursor: default; transform: none; }
+.lien { background: none; border: 0; padding: 4px; font-weight: 700; color: var(--orange); text-decoration: underline; text-underline-offset: 3px; }
+
+/* Choix (réponses de quiz, options) */
+.choix { width: 100%; text-align: left; display: flex; align-items: center; gap: 12px; padding: 14px 16px; min-height: 58px; border-radius: 18px; background: var(--carte);
+  border: 1.6px solid var(--bord); box-shadow: 0 3px 0 var(--ombre); font-weight: 700; }
+.choix[aria-pressed="true"] { background: var(--c-clair); border-color: var(--c); box-shadow: 0 3px 0 var(--c-bord); }
+.choix.bon { background: var(--vert-clair); border-color: var(--vert-bord); box-shadow: 0 3px 0 var(--vert-bord); }
+.choix.faux { background: var(--rouge-clair); border-color: var(--rouge); box-shadow: 0 3px 0 var(--rouge); }
+.choix:disabled { cursor: default; }
+
+/* Champs */
+.champ { width: 100%; min-height: 52px; padding: 12px 16px; border-radius: 16px; border: 1.6px solid var(--bord); background: var(--carte); font-weight: 600; }
+textarea.champ { min-height: 110px; resize: vertical; line-height: 1.4; }
+.champ:focus { outline: none; border-color: var(--c); box-shadow: 0 0 0 3px var(--c-clair); }
+
+/* Joueurs */
+.joueurs { display: flex; flex-direction: column; gap: 8px; }
+.joueur { display: flex; align-items: center; gap: 10px; }
+.joueur input { flex: 1; min-width: 0; min-height: 46px; padding: 8px 14px; border-radius: 14px; border: 1.6px solid var(--bord); background: var(--carte); font-weight: 700; }
+.pastille-j { width: 34px; height: 34px; border-radius: 50%; flex: none; display: grid; place-items: center; font-family: var(--titre); font-weight: 900; color: #fff; background: var(--pj); }
+.suppr { width: 40px; height: 40px; border-radius: 50%; border: 0; background: var(--creux); font-weight: 900; flex: none; }
+.ajout { display: flex; gap: 8px; }
+.ajout .btn { width: auto; flex: none; min-height: 46px; padding: 0 18px; }
+
+/* Compteur de manche */
+.hud { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; }
+.hud .score { font-size: 2.6rem; line-height: 1; }
+.hud .score small { font-size: 1.1rem; color: var(--encre-2); }
+.jauge { height: 10px; border-radius: 10px; background: var(--creux); overflow: hidden; }
+.jauge i { display: block; height: 100%; background: var(--c); transform-origin: left; transition: transform 420ms cubic-bezier(.22, 1, .36, 1); }
+.etiquette { display: inline-block; font-family: var(--titre); font-weight: 800; font-size: .95rem; padding: 4px 12px; border-radius: 999px; background: var(--c-clair); color: var(--c-bord); }
+.etiquette.vert { background: var(--vert-clair); color: var(--vert-bord); }
+.etiquette.rouge { background: var(--rouge-clair); color: var(--rouge); }
+
+/* Modale */
+.modale { position: fixed; inset: 0; z-index: 30; background: rgba(44, 37, 32, .45); display: grid; place-items: end center; padding: 16px; }
+.modale .boite { width: 100%; max-width: 560px; max-height: 88dvh; overflow-y: auto; background: var(--fond); border: 1.6px solid var(--bord); border-radius: 28px;
+  box-shadow: 0 4px 0 var(--ombre); padding: 22px; display: flex; flex-direction: column; gap: 14px; animation: monte 300ms cubic-bezier(.22, 1, .36, 1) both; }
+@keyframes monte { from { opacity: 0; transform: translateY(30px); } }
+@media (min-width: 700px) { .modale { place-items: center; } }
+.regles ol, .regles ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 6px; }
+
+.toast { position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 24px); transform: translateX(-50%); z-index: 40; background: var(--nuit); color: #fff;
+  padding: 12px 20px; border-radius: 999px; font-weight: 700; animation: entre 260ms both; max-width: calc(100% - 32px); text-align: center; }
+
+/* Écran à passer : on tend le téléphone au joueur suivant */
+.passe { text-align: center; display: flex; flex-direction: column; align-items: center; gap: 14px; padding: 28px 20px; }
+.passe .nom { font-family: var(--titre); font-weight: 900; font-size: 2.2rem; line-height: 1.05; }
+
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}

@@ -1,0 +1,180 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Faux dico, Games</title>
+  <meta name="theme-color" content="#FFFDF5">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../commun.css">
+  <style>
+    .mot { font-family: var(--titre); font-weight: 900; font-size: clamp(2rem, 9vw, 3rem); line-height: 1.05; text-align: center; overflow-wrap: anywhere; }
+    .defs { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+    .defs li { display: flex; gap: 12px; align-items: flex-start; padding: 12px 14px; border-radius: 16px; background: var(--creux); }
+    .defs li.vraie { background: var(--vert-clair); box-shadow: inset 0 0 0 1.6px var(--vert-bord); }
+    .lettre { font-family: var(--titre); font-weight: 900; font-size: 1.2rem; color: var(--c-bord); min-width: 1.4em; }
+    .defs .qui { display: block; font-size: .85rem; font-weight: 700; color: var(--encre-2); margin-top: 4px; }
+    .vote-j { display: flex; flex-direction: column; gap: 6px; }
+    .vote-j .nom { display: flex; align-items: center; gap: 8px; font-weight: 700; }
+    .lettres { display: flex; flex-wrap: wrap; gap: 6px; }
+    .lettres .choix { width: 48px; min-height: 46px; padding: 0; justify-content: center; font-family: var(--titre); font-weight: 900; }
+    .scores { list-style: none; margin: 0; padding: 0; }
+    .scores li { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-weight: 700; }
+    .scores li .n { flex: 1; }
+    .gain { color: var(--vert-bord); font-family: var(--titre); font-weight: 800; }
+  </style>
+</head>
+<body data-jeu="fauxdico">
+  <header class="entete">
+    <a class="marque" href="../" aria-label="Retour à Games"></a>
+    <span class="pilule-jeu"></span>
+    <div class="droite"><button class="rond" id="aide" aria-label="Règles">?</button></div>
+  </header>
+  <main class="app" id="app" aria-live="polite"></main>
+  <div id="modale" class="modale" hidden></div>
+  <script src="../commun.js"></script>
+  <script src="data.js"></script>
+  <script>
+'use strict';
+const $app = document.getElementById('app');
+const ABC = 'ABCDEFGHIJKLMNOPQRSTU';
+let P = null;
+
+function accueil() {
+  const J = G.joueurs();
+  $app.innerHTML = `<div class="entre pile">
+      <h1>Faux dico</h1>
+      <p class="doux">Un mot rare et bien réel s'affiche. Chacun invente en secret une définition crédible. On les mélange avec la vraie, puis on vote : trouver la vraie rapporte des points, piéger les autres aussi.</p>
+    </div>
+    <section class="carte pile entre">
+      <h3>Joueurs</h3>
+      <div id="ed"></div>
+      <button class="btn jeu" data-act="jouer" ${J.length < 3 ? 'disabled' : ''}>Commencer${J.length < 3 ? ' (3 joueurs minimum)' : ''}</button>
+    </section>`;
+  G.editeurJoueurs(document.getElementById('ed'), accueil);
+}
+
+function jouer() {
+  P = { noms: G.joueurs(), scores: G.joueurs().map(() => 0), manche: 0 };
+  manche();
+}
+
+function manche() {
+  P.manche++;
+  [P.mot, P.vraie] = G.tirer('fauxdico', MOTS, 1)[0];
+  P.defs = P.noms.map(() => null);
+  P.j = 0;
+  $app.innerHTML = `<div class="hud"><span class="etiquette">Manche ${P.manche}</span><button class="lien" data-act="scores">Scores</button></div>
+    <section class="carte pile entre centre">
+      <p class="doux">Le mot de la manche</p>
+      <p class="mot">${G.esc(P.mot)}</p>
+      <p class="doux">Montrez-le à tout le monde. Si quelqu'un connaît le sens exact, changez de mot.</p>
+      <button class="btn jeu" data-act="ecrire">Chacun écrit sa définition</button>
+      <button class="btn" data-act="autre">Changer de mot</button>
+    </section>`;
+}
+
+function passe() {
+  $app.innerHTML = `<div class="carte passe entre">
+    ${G.pastille(P.noms[P.j], P.j)}
+    <p class="doux">Passe le téléphone à</p>
+    <p class="nom">${G.esc(P.noms[P.j])}</p>
+    <button class="btn jeu" data-act="saisir">C'est moi</button>
+  </div>`;
+}
+
+function saisir() {
+  $app.innerHTML = `<section class="carte pile entre">
+      <p class="mot">${G.esc(P.mot)}</p>
+      <label class="doux" for="def">${G.esc(P.noms[P.j])}, invente une définition qui sonne vrai.</label>
+      <textarea class="champ" id="def" maxlength="160" placeholder="Petit outil de cordonnier servant à…"></textarea>
+      <button class="btn jeu" data-act="valider">Valider et cacher</button>
+    </section>`;
+  document.getElementById('def').focus();
+}
+
+function lecture() {
+  P.liste = G.melanger([{ t: P.vraie, de: -1 }, ...P.defs.map((t, i) => ({ t, de: i }))]);
+  P.votes = P.noms.map(() => null);
+  $app.innerHTML = `<section class="carte pile entre">
+      <p class="mot">${G.esc(P.mot)}</p>
+      <p class="doux">Lisez toutes les définitions à voix haute, sans rire.</p>
+      <ol class="defs">${P.liste.map((d, k) => `<li><span class="lettre">${ABC[k]}</span><span>${G.esc(d.t)}</span></li>`).join('')}</ol>
+      <button class="btn jeu" data-act="voter">Passer au vote</button>
+    </section>`;
+}
+
+function vote() {
+  const tous = P.votes.every(v => v !== null);
+  $app.innerHTML = `<section class="carte pile entre">
+      <p class="mot">${G.esc(P.mot)}</p>
+      <ol class="defs">${P.liste.map((d, k) => `<li><span class="lettre">${ABC[k]}</span><span>${G.esc(d.t)}</span></li>`).join('')}</ol>
+    </section>
+    <section class="carte pile">
+      <h3>Qui vote pour quoi ?</h3>
+      <p class="doux petit">On ne peut pas voter pour sa propre définition.</p>
+      ${P.noms.map((n, i) => `<div class="vote-j"><span class="nom">${G.pastille(n, i)}${G.esc(n)}</span>
+        <div class="lettres" role="group" aria-label="Vote de ${G.esc(n)}">${P.liste.map((d, k) => `<button class="choix" data-act="vote" data-i="${i}" data-k="${k}"
+          aria-pressed="${P.votes[i] === k}" ${d.de === i ? 'disabled' : ''} aria-label="${ABC[k]}">${ABC[k]}</button>`).join('')}</div></div>`).join('')}
+      <button class="btn jeu" data-act="reveler" ${tous ? '' : 'disabled'}>${tous ? 'Révéler la vraie définition' : 'Tout le monde doit voter'}</button>
+    </section>`;
+}
+
+function reveler() {
+  const gains = P.noms.map(() => 0);
+  P.votes.forEach((k, i) => {
+    const d = P.liste[k];
+    if (d.de === -1) gains[i] += 2;          // a trouvé la vraie
+    else gains[d.de] += 1;                    // a piégé quelqu'un
+  });
+  gains.forEach((g, i) => { P.scores[i] += g; });
+  const votants = k => P.votes.map((v, i) => v === k ? P.noms[i] : null).filter(Boolean);
+  $app.innerHTML = `<section class="carte pile entre">
+      <p class="mot">${G.esc(P.mot)}</p>
+      <ol class="defs">${P.liste.map((d, k) => {
+        const v = votants(k);
+        return `<li class="${d.de === -1 ? 'vraie' : ''}"><span class="lettre">${ABC[k]}</span><span>${G.esc(d.t)}
+          <span class="qui">${d.de === -1 ? 'La vraie définition' : 'Inventée par ' + G.esc(P.noms[d.de])}${v.length ? `, choisie par ${v.map(G.esc).join(', ')}` : ''}</span></span></li>`;
+      }).join('')}</ol>
+    </section>
+    <section class="carte"><h3>Scores</h3><ul class="scores">${P.noms.map((n, i) => ({ n, i, s: P.scores[i] })).sort((a, b) => b.s - a.s)
+      .map(o => `<li>${G.pastille(o.n, o.i)}<span class="n">${G.esc(o.n)}</span>${gains[o.i] ? `<span class="gain">+${gains[o.i]}</span>` : ''}<span class="chiffre">${o.s}</span></li>`).join('')}</ul></section>
+    <button class="btn jeu" data-act="suivante">Manche suivante</button>
+    <button class="btn" data-act="accueil">Changer les joueurs</button>`;
+}
+
+const actions = {
+  jouer, accueil, suivante: manche,
+  autre() { P.manche--; manche(); },
+  ecrire: passe, saisir,
+  valider() {
+    const t = document.getElementById('def').value.trim().replace(/\s+/g, ' ');
+    if (t.length < 4) return G.toast('Écris au moins quelques mots');
+    P.defs[P.j] = t[0].toUpperCase() + t.slice(1) + (/[.!?…]$/.test(t) ? '' : '.');
+    if (++P.j < P.noms.length) passe(); else lecture();
+  },
+  voter: vote,
+  vote(d) { P.votes[+d.i] = +d.k; vote(); },
+  reveler,
+  scores() {
+    G.modale(`<h2>Scores</h2><ul class="scores">${P.noms.map((n, i) => `<li>${G.pastille(n, i)}<span class="n">${G.esc(n)}</span><span class="chiffre">${P.scores[i]}</span></li>`).join('')}</ul>
+      <button class="btn principal" onclick="G.fermer()">Fermer</button>`);
+  },
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && actions[b.dataset.act]) actions[b.dataset.act](b.dataset); });
+document.getElementById('aide').onclick = () => G.modale(`<h2>Comment jouer</h2>
+  <div class="regles"><ul>
+    <li>Un mot rare s'affiche pour tout le monde.</li>
+    <li>Le téléphone passe de main en main : chacun écrit en secret une fausse définition, la plus crédible possible.</li>
+    <li>Toutes les définitions sont mélangées avec la vraie et lues à voix haute.</li>
+    <li>Chacun vote pour celle qu'il croit vraie. Trouver la vraie : +2. Chaque joueur piégé par ta définition : +1 pour toi.</li>
+  </ul></div>
+  <button class="btn principal" onclick="G.fermer()">Compris</button>`);
+accueil();
+  </script>
+</body>
+</html>

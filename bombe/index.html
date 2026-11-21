@@ -1,0 +1,135 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Bombe, Games</title>
+  <meta name="theme-color" content="#FFFDF5">
+  <link rel="manifest" href="../manifest.webmanifest">
+  <link rel="icon" href="../icons/icon.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@600..900&family=Plus+Jakarta+Sans:wght@400..800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="../commun.css">
+  <style>
+    .segment { display: grid; grid-template-columns: repeat(3, 1fr); gap: 8px; }
+    .segment .choix { justify-content: center; text-align: center; flex-direction: column; gap: 2px; min-height: 64px; padding: 10px 6px; }
+    .segment .choix small { font-weight: 600; color: var(--encre-2); font-size: .8rem; }
+    .bombe { width: min(56vw, 220px); margin: 4px auto 0; display: block; }
+    .bombe.tic { animation: tic var(--t, 600ms) ease-in-out infinite; }
+    @keyframes tic { 50% { transform: rotate(-4deg) scale(1.03); } }
+    .categorie { font-family: var(--titre); font-weight: 900; font-size: clamp(1.8rem, 8vw, 2.6rem); line-height: 1.05; text-align: center; text-wrap: balance; }
+    .lettre { font-family: var(--titre); font-weight: 900; font-size: 1.3rem; text-align: center; color: var(--c-bord); }
+    .boum { background: var(--rouge); color: #fff; border-color: #991B1B; box-shadow: 0 4px 0 #7F1D1D; text-align: center; }
+    .boum h2 { font-size: clamp(3rem, 16vw, 5rem); font-weight: 900; }
+    .boum p { color: #FEE2E2; }
+    .bascule { display: flex; align-items: center; justify-content: space-between; gap: 12px; font-weight: 700; }
+    .bascule input { width: 52px; height: 30px; accent-color: var(--c-bord); }
+  </style>
+</head>
+<body data-jeu="bombe">
+  <header class="entete">
+    <a class="marque" href="../" aria-label="Retour à Games"></a>
+    <span class="pilule-jeu"></span>
+    <div class="droite"></div>
+  </header>
+  <main class="app" id="app" aria-live="polite"></main>
+  <div id="modale" class="modale" hidden></div>
+  <script src="../commun.js"></script>
+  <script src="../donnees/categories.js"></script>
+  <script>
+'use strict';
+const DUREES = { courte: [12, 30, 'Courte', '12 à 30 s'], normale: [25, 55, 'Normale', '25 à 55 s'], longue: [45, 90, 'Longue', '45 à 90 s'] };
+const LETTRES = 'ABCDEFGHIJLMNOPRSTV';
+const $app = document.getElementById('app');
+const R = G.lire('bombe:reglages', { duree: 'normale', lettre: false });
+let P = null, minuteur = null, tictac = null;
+
+const svgBombe = `<svg class="bombe" id="bombe" viewBox="0 0 200 200" aria-hidden="true">
+  <circle cx="92" cy="118" r="66" fill="#2C2520"/>
+  <circle cx="68" cy="96" r="14" fill="#5B514A"/>
+  <rect x="112" y="40" width="34" height="30" rx="6" transform="rotate(35 129 55)" fill="#5B514A"/>
+  <path d="M140 46c10-16 26-22 40-14" fill="none" stroke="#8C8276" stroke-width="6" stroke-linecap="round"/>
+  <circle cx="182" cy="30" r="9" fill="#F59E0B"/><circle cx="182" cy="30" r="4" fill="#FEF3C7"/></svg>`;
+
+function accueil() {
+  arreter();
+  $app.innerHTML = `<div class="entre pile">
+      <h1>Ne garde pas la bombe</h1>
+      <p class="doux">Une catégorie s'affiche. Dis un mot qui en fait partie, puis passe vite le téléphone à ton voisin. Personne ne sait quand la bombe explose : celui qui la tient à ce moment-là a perdu la manche.</p>
+    </div>
+    <section class="carte pile entre">
+      <h3>Durée de la mèche</h3>
+      <div class="segment">${Object.entries(DUREES).map(([k, d]) => `<button class="choix" data-act="duree" data-k="${k}" aria-pressed="${R.duree === k}">${d[2]}<small>${d[3]}</small></button>`).join('')}</div>
+      <label class="bascule">Imposer une première lettre<input type="checkbox" id="lettre" ${R.lettre ? 'checked' : ''}></label>
+      <p class="doux petit">Pas de répétition : un mot déjà dit ne compte pas. Si vous séchez tous, changez de catégorie.</p>
+      <button class="btn jeu" data-act="allumer">Allumer la mèche</button>
+    </section>`;
+  document.getElementById('lettre').onchange = e => { R.lettre = e.target.checked; G.ecrire('bombe:reglages', R); };
+}
+
+function nouvelleCategorie() {
+  P.cat = G.tirer('bombe', CATEGORIES, 1)[0];
+  P.lettre = R.lettre ? LETTRES[G.hasard(LETTRES.length)] : null;
+}
+
+function allumer() {
+  const [min, max] = DUREES[R.duree];
+  P = { fin: performance.now() + (min + Math.random() * (max - min)) * 1000, debut: performance.now() };
+  nouvelleCategorie();
+  jeu();
+  minuteur = setTimeout(boum, P.fin - performance.now());
+  tic();
+}
+
+// Le tic-tac accélère avec le temps écoulé, sans rien dire du temps restant.
+function tic() {
+  const ecoule = (performance.now() - P.debut) / 1000;
+  const pas = Math.max(170, 650 - ecoule * 9);
+  G.son(ecoule % 2 < 1 ? 1100 : 900, 0.04, 'square', 0.05);
+  document.getElementById('bombe')?.style.setProperty('--t', pas * 2 + 'ms');
+  tictac = setTimeout(tic, pas);
+}
+
+function jeu() {
+  $app.innerHTML = `<section class="carte pile entre">
+      ${svgBombe.replace('class="bombe"', 'class="bombe tic"')}
+      <p class="categorie">${G.esc(P.cat)}</p>
+      ${P.lettre ? `<p class="lettre">Commençant par ${P.lettre}</p>` : ''}
+      <p class="doux centre">Un mot, et on passe !</p>
+    </section>
+    <div class="rangee">
+      <button class="btn" data-act="changer">Autre catégorie</button>
+      <button class="btn" data-act="stop">Arrêter</button>
+    </div>`;
+}
+
+function boum() {
+  arreter();
+  G.vibrer([400, 100, 400]);
+  G.son(70, 0.9, 'sawtooth', 0.25);
+  G.son(45, 1.2, 'square', 0.2);
+  $app.innerHTML = `<section class="carte pile boum entre">
+      <h2>BOUM</h2>
+      <p>Celui qui tient le téléphone a perdu la manche.</p>
+      <p>La catégorie était : <b>${G.esc(P.cat)}</b>${P.lettre ? `, lettre ${P.lettre}` : ''}.</p>
+    </section>
+    <button class="btn jeu" data-act="allumer">Rallumer une mèche</button>
+    <button class="btn" data-act="accueil">Réglages</button>`;
+}
+
+function arreter() { clearTimeout(minuteur); clearTimeout(tictac); minuteur = null; }
+
+const actions = {
+  duree(d) { R.duree = d.k; G.ecrire('bombe:reglages', R); accueil(); },
+  allumer, accueil,
+  changer() { nouvelleCategorie(); jeu(); },
+  stop: accueil,
+};
+document.addEventListener('click', e => { const b = e.target.closest('[data-act]'); if (b && actions[b.dataset.act]) actions[b.dataset.act](b.dataset); });
+// Si l'appli passe en arrière-plan, la bombe explose au retour si son heure est passée.
+document.addEventListener('visibilitychange', () => { if (!document.hidden && P && minuteur && performance.now() >= P.fin) boum(); });
+accueil();
+  </script>
+</body>
+</html>
