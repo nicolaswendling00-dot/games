@@ -1,10 +1,10 @@
 // Service worker : réseau d'abord, cache en secours (dernière version en ligne, jouable hors ligne).
 // cache: 'no-cache' contourne le cache HTTP de GitHub Pages. Changer CACHE_NAME à chaque version.
-const CACHE_NAME = 'games-v1';
+const CACHE_NAME = 'games-v2';
 const JEUX = ['imposteur', 'fauxdico', 'bombe', 'encheres', 'dilemmes', 'tendance', 'decades', 'quiditca', 'vraifaux'];
 const COQUILLE = [
-  './', 'index.html', 'commun.css', 'commun.js', 'manifest.webmanifest', 'donnees/categories.js',
-  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/apple-touch-icon.png',
+  './', 'index.html', 'commun.css', 'commun.js', 'manifest.webmanifest', 'donnees/categories.js', 'donnees/categories-plus.js', 'decades/data-wikidata.js',
+  'icons/icon.svg', 'icons/icon-192.png', 'icons/icon-512.png', 'icons/icon-maskable.png', 'icons/apple-touch-icon.png',
   ...JEUX.map(j => j + '/'), ...JEUX.filter(j => j !== 'bombe' && j !== 'encheres' && j !== 'imposteur').map(j => j + '/data.js'),
   'imposteur/app.js', 'imposteur/style.css', 'imposteur/data/paires.json', 'decades/glyphs.js'
 ];

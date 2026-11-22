@@ -19,7 +19,8 @@
   --texte: 'Plus Jakarta Sans', system-ui, -apple-system, 'Segoe UI', sans-serif;
   --r: 24px;
 }
-* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+/* touch-action: manipulation supprime le zoom au double toucher (iOS compris) sans bloquer le pincement. */
+*, *::before, *::after { box-sizing: border-box; -webkit-tap-highlight-color: transparent; touch-action: manipulation; }
 html { -webkit-text-size-adjust: 100%; }
 body { margin: 0; min-height: 100dvh; background: var(--fond); color: var(--encre); font: 16px/1.45 var(--texte); overscroll-behavior-y: none; }
 button, input, textarea, select { font: inherit; color: inherit; }

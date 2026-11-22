@@ -31,8 +31,10 @@ function icone(id) {
   return `<svg viewBox="0 0 32 32" aria-hidden="true" fill="none" stroke="${ENCRE}" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
     <rect x="1.5" y="1.5" width="29" height="29" rx="9" fill="${j.c[1]}" stroke="${j.c[0]}" stroke-width="1.6"/>${GLYPHES[id]}</svg>`;
 }
-const LOGO = `<svg viewBox="0 0 32 32" aria-hidden="true"><rect x="1.5" y="1.5" width="29" height="29" rx="9" fill="#C2410C"/>
-  <path d="M10 11.5l7.5 4.5-7.5 4.5z" fill="#fff"/><circle cx="22.5" cy="16" r="2.6" fill="#FED7AA"/></svg>`;
+const LOGO = `<svg viewBox="0 0 512 512" aria-hidden="true"><rect width="512" height="512" rx="116" fill="#EA580C"/>
+  <g transform="rotate(-10 256 256)"><rect x="118" y="138" width="276" height="276" rx="64" fill="#7C2D12"/><rect x="118" y="110" width="276" height="276" rx="64" fill="#FFFDF5"/>
+  <circle cx="190" cy="182" r="32" fill="#DB2777"/><circle cx="322" cy="182" r="32" fill="#2563EB"/><circle cx="256" cy="248" r="32" fill="#2C2520"/>
+  <circle cx="190" cy="314" r="32" fill="#65A30D"/><circle cx="322" cy="314" r="32" fill="#CA8A04"/></g></svg>`;
 
 const G = {
   esc: t => String(t).replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c])),

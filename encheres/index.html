@@ -17,12 +17,13 @@
     .grille-j .choix { gap: 8px; }
     .pas { display: flex; align-items: center; justify-content: center; gap: 18px; }
     .pas .rond { width: 58px; height: 58px; font-size: 1.6rem; }
-    .pas output { font-family: var(--titre); font-weight: 900; font-size: 3.4rem; min-width: 2ch; text-align: center; line-height: 1; }
+    .pas input { font-family: var(--titre); font-weight: 900; font-size: 3rem; width: 3.2ch; text-align: center; line-height: 1; padding: 6px 0; border-radius: 18px;
+      border: 1.6px solid var(--bord); background: #fff; -moz-appearance: textfield; appearance: textfield; }
+    .pas input::-webkit-inner-spin-button, .pas input::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
+    .pas input:focus { outline: none; border-color: var(--c); box-shadow: 0 0 0 3px var(--c-clair); }
     .compte { font-family: var(--titre); font-weight: 900; font-size: clamp(4rem, 22vw, 6.5rem); line-height: 1; text-align: center; font-variant-numeric: tabular-nums; }
-    .compte small { font-size: .35em; color: var(--encre-2); }
     .temps { font-family: var(--titre); font-weight: 900; font-size: 1.6rem; text-align: center; font-variant-numeric: tabular-nums; }
     .temps.urgent { color: var(--rouge); }
-    .plus { min-height: 96px; font-size: 1.6rem; }
     .scores li { display: flex; align-items: center; gap: 10px; padding: 6px 0; font-weight: 700; }
     .scores li .n { flex: 1; }
     .scores { list-style: none; margin: 0; padding: 0; }
@@ -38,6 +39,7 @@
   <div id="modale" class="modale" hidden></div>
   <script src="../commun.js"></script>
   <script src="../donnees/categories.js"></script>
+  <script src="../donnees/categories-plus.js"></script>
   <script>
 'use strict';
 const DUREE = 30;
@@ -49,7 +51,7 @@ function accueil() {
   const J = G.joueurs();
   $app.innerHTML = `<div class="entre pile">
       <h1>Qui dit mieux ?</h1>
-      <p class="doux">Une catégorie tombe. À tour de rôle, chacun annonce combien d'éléments il est capable de citer. Celui qui annonce le plus doit tenir sa promesse en ${DUREE} secondes, sous l'œil des autres.</p>
+      <p class="doux">Une catégorie tombe. À tour de rôle, chacun annonce combien d'éléments il est capable de citer. Celui qui annonce le plus doit tenir sa promesse en ${DUREE} secondes. S'il y arrive, il marque autant de points que son enchère.</p>
     </div>
     <section class="carte pile entre">
       <h3>Joueurs</h3>
@@ -67,7 +69,7 @@ function jouer() {
 function manche() {
   P.manche++;
   P.cat = G.tirer('encheres', CATEGORIES, 1)[0];
-  P.qui = null; P.mise = 3; P.dits = 0;
+  P.qui = null; P.mise = 3;
   encheres();
 }
 
@@ -77,49 +79,53 @@ function encheres() {
       <p class="categorie">${G.esc(P.cat)}</p>
       <p class="doux centre">Faites monter les enchères à voix haute, puis indiquez qui a gagné et sa mise.</p>
       <div class="pas"><button class="rond" data-act="moins" aria-label="Diminuer la mise">−</button>
-        <output aria-live="polite">${P.mise}</output>
+        <input id="mise" type="number" inputmode="numeric" min="1" max="99" value="${P.mise}" aria-label="Enchère gagnante">
         <button class="rond" data-act="plus" aria-label="Augmenter la mise">+</button></div>
       <div class="grille-j" role="group" aria-label="Joueur qui remporte l'enchère">
         ${P.noms.map((n, i) => `<button class="choix" data-act="qui" data-i="${i}" aria-pressed="${P.qui === i}">${G.pastille(n, i)}${G.esc(n)}</button>`).join('')}
       </div>
-      <button class="btn jeu" data-act="defi" ${P.qui === null ? 'disabled' : ''}>${P.qui === null ? 'Choisis le joueur' : `${G.esc(P.noms[P.qui])} en cite ${P.mise}, top chrono`}</button>
+      <button class="btn jeu" id="go" data-act="defi" ${P.qui === null ? 'disabled' : ''}>${texteGo()}</button>
       <button class="btn" data-act="changer">Autre catégorie</button>
     </section>`;
 }
 
+const texteGo = () => P.qui === null ? 'Choisis le joueur' : `${G.esc(P.noms[P.qui])} en cite ${P.mise}, top chrono`;
+// La mise se tape au clavier sans re-rendre l'écran (le clavier resterait sinon fermé).
+document.addEventListener('input', e => {
+  if (e.target.id !== 'mise') return;
+  const v = parseInt(e.target.value, 10);
+  if (v >= 1 && v <= 99) { P.mise = v; document.getElementById('go').innerHTML = texteGo(); }
+});
+document.addEventListener('change', e => { if (e.target.id === 'mise') e.target.value = P.mise; });
+
 function defi() {
   P.fin = Date.now() + DUREE * 1000;
-  const rendre = () => {
-    const reste = Math.max(0, Math.ceil((P.fin - Date.now()) / 1000));
-    $app.innerHTML = `<section class="carte pile entre">
-        <p class="doux centre">${G.esc(P.noms[P.qui])} cite des <b>${G.esc(P.cat.toLowerCase())}</b></p>
-        <p class="compte">${P.dits}<small> / ${P.mise}</small></p>
-        <p class="temps ${reste <= 5 ? 'urgent' : ''}">${reste} s</p>
-        <button class="btn vert plus" data-act="ok">Validé</button>
-        <button class="btn" data-act="annule" ${P.dits ? '' : 'disabled'}>Annuler le dernier</button>
-      </section>`;
-  };
-  rendre();
+  $app.innerHTML = `<section class="carte pile entre">
+      <p class="doux centre">${G.esc(P.noms[P.qui])} doit citer</p>
+      <p class="compte">${P.mise}</p>
+      <p class="categorie">${G.esc(P.cat)}</p>
+      <p class="temps" id="temps">${DUREE} s</p>
+      <p class="doux centre petit">Les autres comptent. À la fin, dites si le compte y est.</p>
+      <button class="btn vert" data-act="reussi">Il en a cité ${P.mise}</button>
+      <button class="btn" data-act="rate">Pas assez</button>
+    </section>`;
   clearInterval(chrono);
   chrono = setInterval(() => {
-    const reste = (P.fin - Date.now()) / 1000;
-    if (reste <= 0) return verdict(false);
-    const t = document.querySelector('.temps');
-    if (t) { t.textContent = Math.ceil(reste) + ' s'; t.classList.toggle('urgent', reste <= 5); }
-    if (reste <= 5) G.son(880, 0.05);
-  }, 1000);
-  P.rendre = rendre;
+    const reste = (P.fin - Date.now()) / 1000, t = document.getElementById('temps');
+    if (!t) return clearInterval(chrono);
+    if (reste <= 0) { clearInterval(chrono); t.textContent = 'Temps écoulé'; t.classList.add('urgent'); G.son(160, 0.5, 'sawtooth', 0.12); G.vibrer([200, 80, 200]); return; }
+    t.textContent = Math.ceil(reste) + ' s'; t.classList.toggle('urgent', reste <= 5);
+    if (reste <= 5 && Math.ceil(reste) !== P.bip) { P.bip = Math.ceil(reste); G.son(880, 0.05); }
+  }, 250);
 }
 
 function verdict(reussi) {
   clearInterval(chrono);
   if (reussi) P.scores[P.qui] += P.mise;
-  else P.scores.forEach((_, i) => { if (i !== P.qui) P.scores[i] += 1; });
-  G.vibrer(reussi ? 30 : [200, 80, 200]);
-  if (!reussi) G.son(160, 0.5, 'sawtooth', 0.12);
+  G.vibrer(reussi ? 30 : 10);
   $app.innerHTML = `<section class="carte pile entre centre">
       <h2>${reussi ? `${G.esc(P.noms[P.qui])} a tenu parole` : `Raté pour ${G.esc(P.noms[P.qui])}`}</h2>
-      <p class="doux">${reussi ? `+${P.mise} points pour ${G.esc(P.noms[P.qui])}.` : `${P.dits} sur ${P.mise}. Tous les autres gagnent 1 point.`}</p>
+      <p class="doux">${reussi ? `+${P.mise} points pour ${G.esc(P.noms[P.qui])}.` : 'Pas de points cette manche.'}</p>
     </section>
     ${tableau()}
     <button class="btn jeu" data-act="suivante">Manche suivante</button>
@@ -133,13 +139,13 @@ function tableau() {
 
 const actions = {
   jouer, accueil,
-  plus() { P.mise = Math.min(50, P.mise + 1); encheres(); },
+  plus() { P.mise = Math.min(99, P.mise + 1); encheres(); },
   moins() { P.mise = Math.max(1, P.mise - 1); encheres(); },
   qui(d) { P.qui = +d.i; encheres(); },
   changer() { P.cat = G.tirer('encheres', CATEGORIES, 1)[0]; encheres(); },
-  defi() { P.dits = 0; defi(); },
-  ok() { P.dits++; G.son(1320, 0.06, 'triangle', 0.1); G.vibrer(10); if (P.dits >= P.mise) verdict(true); else P.rendre(); },
-  annule() { P.dits = Math.max(0, P.dits - 1); P.rendre(); },
+  defi,
+  reussi: () => verdict(true),
+  rate: () => verdict(false),
   suivante: manche,
   scores() { G.modale(`${tableau()}<button class="btn principal" onclick="G.fermer()">Fermer</button>`); },
 };
@@ -148,8 +154,8 @@ document.getElementById('aide').onclick = () => G.modale(`<h2>Comment jouer</h2>
   <div class="regles"><ul>
     <li>Une catégorie s'affiche, par exemple « Fromages ».</li>
     <li>Chacun son tour, on surenchérit à voix haute : « J'en cite 5 », « Moi 7 »… On peut passer.</li>
-    <li>Le dernier à avoir enchéri choisit sa mise sur le téléphone et a ${DUREE} secondes pour citer autant d'éléments. Les autres valident chaque réponse correcte.</li>
-    <li>Réussi : il gagne autant de points que sa mise. Raté : tous les autres gagnent 1 point.</li>
+    <li>Le dernier à avoir enchéri choisit sa mise sur le téléphone et a ${DUREE} secondes pour citer autant d'éléments. Les autres comptent les bonnes réponses.</li>
+    <li>S'il a cité le nombre annoncé, il gagne autant de points que son enchère. Sinon, personne ne marque.</li>
   </ul></div>
   <button class="btn principal" onclick="G.fermer()">Compris</button>`);
 accueil();

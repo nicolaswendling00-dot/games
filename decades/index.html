@@ -194,6 +194,7 @@ nav svg, .btn svg { width:20px; height:20px; stroke:currentColor; stroke-width:2
 
 <div id="modale" class="modale" hidden></div>
 <script src="../commun.js"></script>
+<script src="data-wikidata.js"></script>
 <script src="data.js"></script>
 <script src="glyphs.js"></script>
 <script>
@@ -303,8 +304,8 @@ function next() {
 function updateGuess() {
   const x = +$('g-range').value, { a, b } = game.pair;
   $('g-ratio').textContent = Math.abs(x) < 0.05 ? '×1' : ratioText(x);
-  $('g-cap').textContent = Math.abs(x) < 0.05 ? `Autant que ${b.n.toLowerCase()}`
-    : `${a.n} : ${fmtNum(10 ** Math.abs(x), 2)} fois ${x > 0 ? 'plus' : 'moins'} que ${b.n.toLowerCase()}`;
+  $('g-cap').textContent = Math.abs(x) < 0.05 ? `Autant que ${b.n}`
+    : `${a.n} : ${fmtNum(10 ** Math.abs(x), 2)} fois ${x > 0 ? 'plus' : 'moins'} que ${b.n}`;
   $('g-range').setAttribute('aria-valuetext', $('g-ratio').textContent);
 }
 $('g-range').oninput = updateGuess;
@@ -324,7 +325,7 @@ function reveal() {
   openSheet({
     title: 'Résultat', badge: `<span class="badge ${verdict[1]}">${verdict[0]}</span>`,
     body: `<span class="eyebrow">Points</span><b class="num pts">+${pts}</b>
-      ${a.g ? `<div class="stage" id="stage" role="img" aria-label="${a.n} et ${b.n} dessinés à la même échelle"></div>
+      ${a.g && b.g ? `<div class="stage" id="stage" role="img" aria-label="${a.n} et ${b.n} dessinés à la même échelle"></div>
         <div class="scrub"><span id="sc-lo"></span><input type="range" id="sc-t" min="0" max="1000" value="0" aria-label="Zoom"><span id="sc-hi"></span></div>` : ''}
       <div class="ruler" role="img" aria-label="Ta réponse ${ratioText(guess)}, bonne réponse ${ratioText(truth)}">
         <div class="mark truth" style="left:${pos(truth)}"><span>${ratioText(truth)}</span></div>
@@ -340,7 +341,7 @@ function reveal() {
       closeSheet(); game.round < ROUNDS ? next() : finish();
     }]],
   });
-  if (a.g) scene(a, b);
+  if (a.g && b.g) scene(a, b);
 }
 
 // Les deux objets à la même échelle, avec un zoom logarithmique du petit vers le grand.

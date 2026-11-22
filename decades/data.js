@@ -7,6 +7,7 @@ const DIMS = {
   vitesse:  { label: 'Vitesse', unit: 'm/s' },
   puissance:{ label: 'Puissance', unit: 'W' },
   nombre:   { label: 'Nombre', unit: '' },
+  surface:  { label: 'Surface', unit: 'm²' },
 };
 
 const ITEMS = [
@@ -197,4 +198,4 @@ const ITEMS = [
   ['nombre', 'Atomes dans un corps humain', 7e27, 0],
   ['nombre', 'Atomes dans l\'univers observable', 1e80, 0],
   ['nombre', 'Parties d\'échecs possibles', 1e120, 0],
-].map(([d, n, v, h], i) => ({ id: i, d, n, v, h: !!h, l: Math.log10(v) }));
+].concat(typeof EXTRA !== 'undefined' ? EXTRA : []).map(([d, n, v, h], i) => ({ id: i, d, n, v, h: !!h, l: Math.log10(v) }));

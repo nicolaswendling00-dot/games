@@ -25,7 +25,8 @@
     .revele { transform-box: fill-box; transform-origin: left; transform: scaleX(0); animation: devoile 1100ms cubic-bezier(.45, 0, .2, 1) 150ms forwards; }
     @keyframes devoile { to { transform: scaleX(1); } }
     @media (prefers-reduced-motion: reduce) { .revele { transform: none; } }
-    .curseur { fill: var(--rose); }
+    .outils { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .outils .btn { box-shadow: 0 2px 0 var(--ombre); }
     .legende { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .9rem; font-weight: 700; }
     .legende i { display: inline-block; width: 18px; height: 4px; border-radius: 2px; vertical-align: middle; margin-right: 6px; background: var(--l); }
     .resultat { display: grid; grid-template-columns: 1fr auto; gap: 4px 12px; align-items: center; }
@@ -54,7 +55,7 @@ let W = 640, H = 420;
 const M = { g: 48, d: 14, h: 16, b: 34 };
 const $app = document.getElementById('app');
 let P = null;          // partie en cours
-let dessin = null;     // tracé du joueur courant : { vals: [], an, actif }
+let dessin = null;     // tracé du joueur courant : { ans, vals, i, histo }
 
 // Échelle « ronde » au-dessus du maximum.
 function plafond(v) {
@@ -72,15 +73,17 @@ function geo(s) {
   W = Math.round(Math.min(640, Math.max(300, $app.clientWidth - 76)));
   H = Math.round(W < 480 ? W * 1.05 : W * 0.66);
   const fin = s.debut + s.v.length - 1, haut = plafond(Math.max(...s.v));
-  const x = a => M.g + (a - s.debut) / (fin - s.debut) * (W - M.g - M.d);
+  // Sur petit écran, on coupe le début de l'historique pour que la zone à dessiner reste large.
+  const d0 = W < 480 ? Math.max(s.debut, Math.round(s.coupe - 1.3 * (fin - s.coupe))) : s.debut;
+  const x = a => M.g + (a - d0) / (fin - d0) * (W - M.g - M.d);
   const y = v => H - M.b - v / haut * (H - M.h - M.b);
-  return { fin, haut, x, y, an: px => s.debut + (px - M.g) / (W - M.g - M.d) * (fin - s.debut), val: py => (H - M.b - py) / (H - M.h - M.b) * haut };
+  return { fin, haut, d0, x, y, an: px => d0 + (px - M.g) / (W - M.g - M.d) * (fin - d0), val: py => (H - M.b - py) / (H - M.h - M.b) * haut };
 }
 const chemin = (pts, g) => pts.map(([a, v], i) => `${i ? 'L' : 'M'}${g.x(a).toFixed(1)},${g.y(v).toFixed(1)}`).join('');
 
 function svgGraphe(s, contenu) {
   const g = geo(s), xc = g.x(s.coupe);
-  const pas = (g.fin - s.debut) > 80 ? 20 : (g.fin - s.debut) > 40 ? 10 : 5;
+  const pas = (g.fin - g.d0) > 80 ? 20 : (g.fin - g.d0) > 40 ? 10 : 5;
   let axes = '';
   // Nombre de graduations qui tombe sur des valeurs rondes (150 → 5 pas de 30, pas 4 de 37,5).
   const n = [4, 5, 3, 6].find(n => +(g.haut / n).toPrecision(2) === g.haut / n) || 4;
@@ -89,9 +92,9 @@ function svgGraphe(s, contenu) {
     axes += `<line x1="${M.g}" x2="${W - M.d}" y1="${yy}" y2="${yy}" stroke="${k ? '#EFE8DA' : '#BDB4A7'}" stroke-width="${k ? 1 : 1.6}"/>
       <text x="${M.g - 8}" y="${yy}" text-anchor="end" dominant-baseline="middle">${fmtV(v)}</text>`;
   }
-  for (let a = Math.ceil(s.debut / pas) * pas; a <= g.fin; a += pas)
+  for (let a = Math.ceil(g.d0 / pas) * pas; a <= g.fin; a += pas)
     axes += `<text x="${g.x(a)}" y="${H - 10}" text-anchor="middle">${a}</text>`;
-  const vu = s.v.slice(0, s.coupe - s.debut + 1).map((v, i) => [s.debut + i, v]);
+  const vu = s.v.slice(g.d0 - s.debut, s.coupe - s.debut + 1).map((v, i) => [g.d0 + i, v]);
   return `<svg viewBox="0 0 ${W} ${H}" role="application" tabindex="0" aria-label="${G.esc(s.titre)}, en ${G.esc(s.unite)}. Courbe connue jusqu'en ${s.coupe}.">
     <rect class="zone" x="${xc}" y="${M.h}" width="${W - M.d - xc}" height="${H - M.h - M.b}" rx="6"/>
     <g class="axe">${axes}</g>
@@ -109,7 +112,7 @@ function accueil() {
   $app.innerHTML = `
     <div class="entre pile">
       <h1>Dessine la suite</h1>
-      <p class="doux">On te montre le début d'une vraie courbe : un mot dans les livres, un prénom à la maternité, une population. Prolonge-la du doigt jusqu'au bout, puis découvre la réalité.</p>
+      <p class="doux">On te montre le début d'une vraie courbe : un mot dans les livres, un prénom à la maternité, une population. Place du doigt les points de la suite, puis découvre la réalité.</p>
     </div>
     <section class="carte pile entre">
       <h3>Seul</h3>
@@ -147,9 +150,32 @@ function passe() {
 }
 
 // ---------- Dessin ----------
+// La zone cachée est découpée en 8 à 10 points à placer : plus facile au doigt qu'un tracé année par année.
+function anneesPoints(s, fin) {
+  const span = fin - s.coupe, n = Math.min(span, Math.max(8, Math.min(10, Math.round(span / 3))));
+  return [...new Set(Array.from({ length: n }, (_, i) => Math.round(s.coupe + span * (i + 1) / n)))];
+}
+console.assert(anneesPoints({ coupe: 1995 }, 2022).length === 9 && anneesPoints({ coupe: 1995 }, 2022).at(-1) === 2022, 'points de contrôle');
+
+// Valeurs année par année, par interpolation entre les points posés (pour le score et l'historique).
+function versAnnees(s, v0, ans, vals) {
+  const pts = [[s.coupe, v0], ...ans.map((a, i) => [a, vals[i]])];
+  const out = [];
+  for (let a = s.coupe + 1, k = 0; a <= ans.at(-1); a++) {
+    while (pts[k + 1][0] < a) k++;
+    const [a0, w0] = pts[k], [a1, w1] = pts[k + 1];
+    out.push(w0 + (w1 - w0) * (a - a0) / (a1 - a0));
+  }
+  return out;
+}
+console.assert(versAnnees({ coupe: 2000 }, 0, [2002, 2004], [2, 6]).join() === '1,2,4,6', 'interpolation');
+
 function dessiner() {
   const s = P.series[P.m], g = geo(s);
-  dessin = { vals: Array(g.fin - s.coupe).fill(null), an: s.coupe + 1 };
+  const ans = anneesPoints(s, g.fin);
+  dessin = { ans, vals: ans.map(() => null), i: 0, histo: [] };
+  const guides = ans.map(a => `<line x1="${g.x(a)}" x2="${g.x(a)}" y1="${M.h + 4}" y2="${H - M.b}" stroke="#E2D9C8" stroke-width="1.4" stroke-dasharray="2 5"/>`).join('');
+  const xm = (g.x(s.coupe) + W - M.d) / 2;
   $app.innerHTML = `
     <div class="hud entre"><div><span class="etiquette">Courbe ${P.m + 1} sur ${MANCHES}</span></div>
       <span class="chiffre doux">${P.groupe ? G.esc(P.noms[P.j]) : G.fmt(P.scores[0]) + ' pts'}</span></div>
@@ -157,47 +183,50 @@ function dessiner() {
     <section class="carte pile entre">
       <h2 class="titre-serie">${G.esc(s.titre)}</h2>
       <p class="doux petit">Unité : ${G.esc(s.unite)}. La courbe s'arrête en ${s.coupe}.</p>
-      <div class="graphe" id="graphe">${svgGraphe(s, `<path class="toi" id="trace"/><text class="zone-texte" id="invite" x="${(g.x(s.coupe) + W - M.d) / 2}" y="${H / 2}" text-anchor="middle"><tspan x="${(g.x(s.coupe) + W - M.d) / 2}">Dessine</tspan><tspan x="${(g.x(s.coupe) + W - M.d) / 2}" dy="22">la suite</tspan></text><circle class="curseur" id="cur" r="0"/>`)}</div>
-      <p class="doux petit" id="aide-dessin">Glisse le doigt dans la zone grisée jusqu'en ${g.fin}. Au clavier : flèches gauche et droite pour l'année, haut et bas pour la valeur.</p>
-      <button class="btn vert" id="valider" disabled>Dessine jusqu'en ${g.fin}</button>
+      <div class="graphe" id="graphe">${svgGraphe(s, `${guides}<path class="toi" id="trace"/><g id="poignees"></g><text class="zone-texte" id="invite" x="${xm}" y="${H / 2}" text-anchor="middle"><tspan x="${xm}">Dessine</tspan><tspan x="${xm}" dy="22">la suite</tspan></text>`)}</div>
+      <div class="outils">
+        <button class="btn petit" id="retour" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg>Retour</button>
+        <button class="btn petit" id="gomme" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21h13"/><path d="M5.5 16.5l9-9a2 2 0 012.8 0l2.2 2.2a2 2 0 010 2.8L13 19H8z"/><path d="M10 12l5 5"/></svg>Effacer</button>
+      </div>
+      <p class="doux petit">Glisse le doigt dans la zone grisée, ou touche chaque colonne pour placer ses ${ans.length} points. Au clavier : gauche et droite pour choisir un point, haut et bas pour le déplacer.</p>
+      <button class="btn vert" id="valider" disabled>Place les ${ans.length} points</button>
     </section>`;
   brancherDessin(s, g);
 }
 
 function brancherDessin(s, g) {
-  const svg = document.querySelector('#graphe svg'), trace = document.getElementById('trace');
-  const btn = document.getElementById('valider'), cur = document.getElementById('cur');
-  const v0 = s.v[s.coupe - s.debut];
+  const svg = document.querySelector('#graphe svg'), trace = document.getElementById('trace'), poignees = document.getElementById('poignees');
+  const btn = document.getElementById('valider'), retour = document.getElementById('retour'), gomme = document.getElementById('gomme');
+  const v0 = s.v[s.coupe - s.debut], { ans, vals } = dessin;
   let dernier = null;
   const maj = () => {
-    const pts = [[s.coupe, v0]];
-    for (let i = 0; i < dessin.vals.length && dessin.vals[i] !== null; i++) pts.push([s.coupe + 1 + i, dessin.vals[i]]);
-    trace.setAttribute('d', chemin(pts, g));
-    const fini = dessin.vals.every(v => v !== null);
-    btn.disabled = !fini;
-    btn.textContent = fini ? 'Valider mon tracé' : `Dessine jusqu'en ${g.fin}`;
-    document.getElementById('invite').style.opacity = dessin.vals.some(v => v !== null) ? 0 : 1;
-    const a = dessin.an, v = dessin.vals[a - s.coupe - 1];
-    cur.setAttribute('r', v === null || v === undefined ? 0 : 6);
-    if (v !== null && v !== undefined) { cur.setAttribute('cx', g.x(a)); cur.setAttribute('cy', g.y(v)); }
-    svg.setAttribute('aria-valuetext', v == null ? `${a} : pas encore dessiné` : `${a} : ${fmtV(v)}`);
+    const poses = ans.map((a, i) => [a, vals[i], i]).filter(p => p[1] !== null);
+    trace.setAttribute('d', chemin([[s.coupe, v0], ...poses], g));
+    poignees.innerHTML = poses.map(([a, v, i]) => `<circle cx="${g.x(a)}" cy="${g.y(v)}" r="${i === dessin.i ? 9 : 7}" fill="${i === dessin.i ? '#9D174D' : '#DB2777'}" stroke="#fff" stroke-width="2.5"/>`).join('');
+    const reste = vals.filter(v => v === null).length;
+    btn.disabled = reste > 0;
+    btn.textContent = reste ? `Encore ${reste} point${reste > 1 ? 's' : ''} à placer` : 'Valider mon tracé';
+    retour.disabled = !dessin.histo.length;
+    gomme.disabled = !poses.length;
+    document.getElementById('invite').style.opacity = poses.length ? 0 : 1;
+    const v = vals[dessin.i];
+    svg.setAttribute('aria-valuetext', `${ans[dessin.i]} : ${v === null ? 'pas encore placé' : fmtV(v)}`);
   };
-  // Pose une valeur sur l'année a, et remplit les années sautées depuis le point précédent.
-  const poser = (a, v) => {
-    a = Math.max(s.coupe + 1, Math.min(g.fin, Math.round(a)));
+  const sauver = () => { dessin.histo.push(vals.slice()); if (dessin.histo.length > 60) dessin.histo.shift(); };
+  const plusProche = x => ans.reduce((best, a, i) => Math.abs(g.x(a) - x) < Math.abs(g.x(ans[best]) - x) ? i : best, 0);
+  // Pose la valeur du point i ; un glissement remplit les points sautés, le premier contact relie les points vides d'avant.
+  const poser = (i, v) => {
     v = Math.max(0, Math.min(g.haut, v));
-    if (dernier && dernier[0] !== a) {
-      const [a0, w0] = dernier, sens = Math.sign(a - a0);
-      for (let k = a0 + sens; k !== a; k += sens) dessin.vals[k - s.coupe - 1] = w0 + (v - w0) * (k - a0) / (a - a0);
+    if (dernier && dernier[0] !== i) {
+      const [i0, w0] = dernier, sens = Math.sign(i - i0);
+      for (let k = i0 + sens; k !== i; k += sens) vals[k] = w0 + (v - w0) * (k - i0) / (i - i0);
     } else if (!dernier) {
-      // Premier contact : on relie depuis la fin de la courbe connue.
-      const prems = dessin.vals.findIndex(x => x === null);
-      const depA = prems <= 0 ? s.coupe : s.coupe + prems, depV = prems <= 0 ? v0 : dessin.vals[prems - 1];
-      for (let k = depA + 1; k < a; k++) if (dessin.vals[k - s.coupe - 1] === null) dessin.vals[k - s.coupe - 1] = depV + (v - depV) * (k - depA) / (a - depA);
+      let k0 = i - 1;
+      while (k0 >= 0 && vals[k0] === null) k0--;
+      const w0 = k0 < 0 ? v0 : vals[k0];
+      for (let k = k0 + 1; k < i; k++) vals[k] = w0 + (v - w0) * (k - k0) / (i - k0);
     }
-    dessin.vals[a - s.coupe - 1] = v;
-    dessin.an = a;
-    dernier = [a, v];
+    vals[i] = v; dessin.i = i; dernier = [i, v];
     maj();
   };
   const point = e => {
@@ -206,22 +235,24 @@ function brancherDessin(s, g) {
   };
   svg.addEventListener('pointerdown', e => {
     const p = point(e);
-    if (g.an(p.x) < s.coupe + 0.5 - 1) return;
-    svg.setPointerCapture(e.pointerId); dernier = null;
-    poser(g.an(p.x), g.val(p.y));
+    if (p.x < g.x(s.coupe) - 12) return;
+    svg.setPointerCapture(e.pointerId); sauver(); dernier = null;
+    poser(plusProche(p.x), g.val(p.y));
   });
-  svg.addEventListener('pointermove', e => { if (svg.hasPointerCapture(e.pointerId)) { const p = point(e); poser(g.an(p.x), g.val(p.y)); } });
+  svg.addEventListener('pointermove', e => { if (svg.hasPointerCapture(e.pointerId)) { const p = point(e); poser(plusProche(p.x), g.val(p.y)); } });
   svg.addEventListener('pointerup', () => { dernier = null; });
   svg.addEventListener('keydown', e => {
-    const i = dessin.an - s.coupe - 1, cour = dessin.vals[i] ?? (i ? dessin.vals[i - 1] : null) ?? v0;
-    const pas = g.haut / 40;
-    if (e.key === 'ArrowRight') { dernier = null; dessin.an = Math.min(g.fin, dessin.an + 1); const j = dessin.an - s.coupe - 1; if (dessin.vals[j] === null) poser(dessin.an, cour); else maj(); }
-    else if (e.key === 'ArrowLeft') { dessin.an = Math.max(s.coupe + 1, dessin.an - 1); maj(); }
-    else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { dernier = null; poser(dessin.an, cour + (e.key === 'ArrowUp' ? pas : -pas)); }
+    const i = dessin.i, cour = vals[i] ?? (i ? vals[i - 1] : null) ?? v0;
+    if (e.key === 'ArrowRight' || e.key === 'ArrowLeft') {
+      dessin.i = Math.max(0, Math.min(ans.length - 1, i + (e.key === 'ArrowRight' ? 1 : -1)));
+      if (vals[dessin.i] === null) { sauver(); dernier = null; poser(dessin.i, cour); } else maj();
+    } else if (e.key === 'ArrowUp' || e.key === 'ArrowDown') { sauver(); dernier = null; poser(i, cour + (e.key === 'ArrowUp' ? 1 : -1) * g.haut / 40); }
     else return;
     e.preventDefault();
   });
-  btn.onclick = () => valider(s, g);
+  retour.onclick = () => { const h = dessin.histo.pop(); if (h) h.forEach((v, k) => { vals[k] = v; }); maj(); };
+  gomme.onclick = () => { sauver(); vals.fill(null); dessin.i = 0; maj(); };
+  btn.onclick = () => { dessin.vals = versAnnees(s, v0, ans, vals); valider(s, g); };
   maj();
 }
 
@@ -296,7 +327,7 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-act]
 document.getElementById('aide').onclick = () => G.modale(`<h2>Comment jouer</h2>
   <div class="regles"><ul>
     <li>Chaque courbe est une vraie série de données : fréquence d'un mot dans les livres en français, prénoms donnés en France, statistiques de la Banque mondiale.</li>
-    <li>On te montre le début. Dessine la suite du doigt dans la zone grisée, année par année, jusqu'au bout.</li>
+    <li>On te montre le début. Place du doigt les 8 à 10 points de la suite dans la zone grisée. Retour annule ton dernier geste, Tout effacer recommence.</li>
     <li>Plus ton tracé colle à la réalité, plus tu marques : 1 000 points pour un tracé parfait.</li>
     <li>À plusieurs, chacun dessine en secret, puis tous les tracés s'affichent ensemble.</li>
   </ul></div>
