@@ -1,6 +1,6 @@
 // Service worker : réseau d'abord, cache en secours (dernière version en ligne, jouable hors ligne).
 // cache: 'no-cache' contourne le cache HTTP de GitHub Pages. Changer CACHE_NAME à chaque version.
-const CACHE_NAME = 'games-v2';
+const CACHE_NAME = 'games-v3';
 const JEUX = ['imposteur', 'fauxdico', 'bombe', 'encheres', 'dilemmes', 'tendance', 'decades', 'quiditca', 'vraifaux'];
 const COQUILLE = [
   './', 'index.html', 'commun.css', 'commun.js', 'manifest.webmanifest', 'donnees/categories.js', 'donnees/categories-plus.js', 'decades/data-wikidata.js',

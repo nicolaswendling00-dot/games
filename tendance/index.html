@@ -60,13 +60,14 @@ let dessin = null;     // tracé du joueur courant : { ans, vals, i, histo }
 // Échelle « ronde » au-dessus du maximum.
 function plafond(v) {
   const e = 10 ** Math.floor(Math.log10(v || 1));
-  for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10]) if (m * e >= v * 1.12) return m * e;
+  for (const m of [1, 1.2, 1.5, 2, 2.5, 3, 4, 5, 6, 8, 10, 12, 15]) if (m * e >= v * 1.12) return m * e;
 }
 const fmtV = v => v.toLocaleString('fr-FR', { maximumSignificantDigits: 3 });
 // Score : 1 000 si parfait, environ 700 pour une erreur moyenne de 8 % de l'échelle.
 const points = (err, haut) => Math.round(1000 * Math.exp(-4.4 * err / haut));
 console.assert(points(0, 10) === 1000 && Math.abs(points(0.8, 10) - 703) < 3, 'points');
-console.assert(plafond(62.1) === 80 && plafond(8.22) === 10, 'plafond');
+console.assert(plafond(62.1) === 80 && plafond(8.22) === 10 && plafond(9.98) === 12, 'plafond');
+console.assert(SERIES.every(x => Number.isFinite(plafond(Math.max(...x.v)))), 'courbe sans échelle');
 
 function geo(s) {
   // Le graphique prend la largeur réelle de la carte : le texte garde sa taille, et sur téléphone il devient plus haut que large.
@@ -112,7 +113,7 @@ function accueil() {
   $app.innerHTML = `
     <div class="entre pile">
       <h1>Dessine la suite</h1>
-      <p class="doux">On te montre le début d'une vraie courbe : un mot dans les livres, un prénom à la maternité, une population. Place du doigt les points de la suite, puis découvre la réalité.</p>
+      <p class="doux">On te montre le début d'une vraie courbe : un mot dans les livres, un prénom à la maternité, une population. Trace la suite du doigt, puis découvre la réalité.</p>
     </div>
     <section class="carte pile entre">
       <h3>Seul</h3>
@@ -183,29 +184,28 @@ function dessiner() {
     <section class="carte pile entre">
       <h2 class="titre-serie">${G.esc(s.titre)}</h2>
       <p class="doux petit">Unité : ${G.esc(s.unite)}. La courbe s'arrête en ${s.coupe}.</p>
-      <div class="graphe" id="graphe">${svgGraphe(s, `${guides}<path class="toi" id="trace"/><g id="poignees"></g><text class="zone-texte" id="invite" x="${xm}" y="${H / 2}" text-anchor="middle"><tspan x="${xm}">Dessine</tspan><tspan x="${xm}" dy="22">la suite</tspan></text>`)}</div>
+      <div class="graphe" id="graphe">${svgGraphe(s, `${guides}<path class="toi" id="trace"/><text class="zone-texte" id="invite" x="${xm}" y="${H / 2}" text-anchor="middle"><tspan x="${xm}">Dessine</tspan><tspan x="${xm}" dy="22">la suite</tspan></text>`)}</div>
       <div class="outils">
         <button class="btn petit" id="retour" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 14L4 9l5-5"/><path d="M4 9h10.5a5.5 5.5 0 010 11H11"/></svg>Retour</button>
         <button class="btn petit" id="gomme" disabled><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M7 21h13"/><path d="M5.5 16.5l9-9a2 2 0 012.8 0l2.2 2.2a2 2 0 010 2.8L13 19H8z"/><path d="M10 12l5 5"/></svg>Effacer</button>
       </div>
-      <p class="doux petit">Glisse le doigt dans la zone grisée, ou touche chaque colonne pour placer ses ${ans.length} points. Au clavier : gauche et droite pour choisir un point, haut et bas pour le déplacer.</p>
-      <button class="btn vert" id="valider" disabled>Place les ${ans.length} points</button>
+      <p class="doux petit">Glisse le doigt dans la zone grisée pour tracer la suite jusqu'en ${g.fin}. Au clavier : gauche et droite pour avancer, haut et bas pour monter ou descendre.</p>
+      <button class="btn vert" id="valider" disabled>Trace jusqu'en ${g.fin}</button>
     </section>`;
   brancherDessin(s, g);
 }
 
 function brancherDessin(s, g) {
-  const svg = document.querySelector('#graphe svg'), trace = document.getElementById('trace'), poignees = document.getElementById('poignees');
+  const svg = document.querySelector('#graphe svg'), trace = document.getElementById('trace');
   const btn = document.getElementById('valider'), retour = document.getElementById('retour'), gomme = document.getElementById('gomme');
   const v0 = s.v[s.coupe - s.debut], { ans, vals } = dessin;
   let dernier = null;
   const maj = () => {
     const poses = ans.map((a, i) => [a, vals[i], i]).filter(p => p[1] !== null);
     trace.setAttribute('d', chemin([[s.coupe, v0], ...poses], g));
-    poignees.innerHTML = poses.map(([a, v, i]) => `<circle cx="${g.x(a)}" cy="${g.y(v)}" r="${i === dessin.i ? 9 : 7}" fill="${i === dessin.i ? '#9D174D' : '#DB2777'}" stroke="#fff" stroke-width="2.5"/>`).join('');
     const reste = vals.filter(v => v === null).length;
     btn.disabled = reste > 0;
-    btn.textContent = reste ? `Encore ${reste} point${reste > 1 ? 's' : ''} à placer` : 'Valider mon tracé';
+    btn.textContent = reste ? `Trace jusqu'en ${g.fin}` : 'Valider mon tracé';
     retour.disabled = !dessin.histo.length;
     gomme.disabled = !poses.length;
     document.getElementById('invite').style.opacity = poses.length ? 0 : 1;
@@ -327,7 +327,7 @@ document.addEventListener('click', e => { const b = e.target.closest('[data-act]
 document.getElementById('aide').onclick = () => G.modale(`<h2>Comment jouer</h2>
   <div class="regles"><ul>
     <li>Chaque courbe est une vraie série de données : fréquence d'un mot dans les livres en français, prénoms donnés en France, statistiques de la Banque mondiale.</li>
-    <li>On te montre le début. Place du doigt les 8 à 10 points de la suite dans la zone grisée. Retour annule ton dernier geste, Tout effacer recommence.</li>
+    <li>On te montre le début. Trace la suite du doigt dans la zone grisée, jusqu'au bout. Retour annule ton dernier geste, Tout effacer recommence.</li>
     <li>Plus ton tracé colle à la réalité, plus tu marques : 1 000 points pour un tracé parfait.</li>
     <li>À plusieurs, chacun dessine en secret, puis tous les tracés s'affichent ensemble.</li>
   </ul></div>

@@ -162,3 +162,24 @@ if ('serviceWorker' in navigator && location.protocol !== 'file:' && location.ho
   const racine = new URL(document.querySelector('link[rel=manifest]')?.getAttribute('href') || 'manifest.webmanifest', location).href.replace(/manifest\.webmanifest$/, '');
   navigator.serviceWorker.register(racine + 'sw.js', { scope: racine }).catch(() => {});
 }
+
+// Animation au toucher, rejouée à chaque appui même rapide (le seul :active est trop bref sur téléphone).
+document.addEventListener('pointerdown', e => {
+  const el = e.target.closest('button, a, .choix, .tuile');
+  if (!el || el.disabled) return;
+  el.classList.remove('tape');
+  void el.offsetWidth;
+  el.classList.add('tape');
+}, { passive: true });
+document.addEventListener('animationend', e => { if (e.animationName === 'tape' || e.animationName === 'de') e.target.closest('.tape')?.classList.remove('tape'); });
+// Les liens internes attendent la fin de l'animation avant de changer de page.
+document.addEventListener('click', e => {
+  const a = e.target.closest('a[href]');
+  if (!a || e.defaultPrevented || e.metaKey || e.ctrlKey || e.shiftKey || a.target || new URL(a.href).origin !== location.origin) return;
+  if (G.reduit()) return;
+  e.preventDefault();
+  setTimeout(() => document.body.classList.add('sortie'), 120);
+  setTimeout(() => { location.href = a.href; }, 300);
+});
+// Retour arrière sur une page restée en cache : on efface l'état de sortie.
+addEventListener('pageshow', () => document.body.classList.remove('sortie'));

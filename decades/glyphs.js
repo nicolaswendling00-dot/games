@@ -53,7 +53,7 @@ const LONG_GLYPH = {
 // Rayons : le dessin fait deux rayons de large.
 GL.proton[2] = GL.atome[2] = 'r';
 ITEMS.forEach(it => { if (it.d === 'longueur') it.g = LONG_GLYPH[it.n]; });
-console.assert(ITEMS.every(it => !(it.n in LONG_GLYPH) || GL[it.g]), 'silhouette manquante');
+console.assert(ITEMS.every(it => it.d !== 'longueur' || !(it.n in LONG_GLYPH) || GL[it.g]), 'silhouette manquante');
 
 const glyphSvg = k => `<svg viewBox="0 0 ${GL[k][0]} ${GL[k][1]}" aria-hidden="true">${GL[k][3]}</svg>`;
 // Taille réelle en mètres [largeur, hauteur].
